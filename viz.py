@@ -6,6 +6,8 @@ import seaborn as sns
 from matplotlib import pyplot as plt
 import pickle
 
+from func import locing
+
 sns.set(style="seaborn-colorblind")
 sns.set(rc={'figure.figsize': (15.7, 7.27)})
 
@@ -62,7 +64,40 @@ for key, value in key_holder.items():
     if value['type'] == 'multiple_study':
         for_sorting[key] = value['sd_cell_line']
 out = sorted(for_sorting.items(), key=lambda kv: kv[1], reverse=True)
-out = out[:150]
+out = out[:150]  # taking 25% of key:value pairs with the highets sd values
+#%%
+#a = pd.DataFrame()
+drugs = []
+cell_lines = []
+studies = []
+for i in out:
+    a = locing(input_all, i[0][0], i[0][1], i[0][2])
+    row = a['drug_row'].drop_duplicates().to_string(index=False)
+    col = a['drug_col'].drop_duplicates().to_string(index=False)
+    cell = a['cell_line_name'].drop_duplicates().to_string(index=False)
+    study = set(a['study'])
+    studies.append(study)
+    drugs.append(row)
+    drugs.append(col)
+    cell_lines.append(cell)
+    print(row, col, cell, study)
+studies1 = []
+for i in studies:
+    i = list(i)
+    studies1.append(i)
+studies1 = [x for sublist in studies1 for x in sublist]
+#%%
+g = sns.countplot(drugs)
+plt.xticks(rotation=90)
+plt.show()
+g = sns.countplot(cell_lines)
+plt.xticks(rotation=90)
+plt.show()
+g = sns.countplot(studies1)
+plt.xticks(rotation=90)
+plt.show()
+
+
 #%%
 #single_sd = []
 #multiple_sd = []
