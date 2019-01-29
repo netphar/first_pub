@@ -11,6 +11,15 @@ A second line of analysis is comparison of sd of css values present in multiple 
 drugA/drugB/cell_line combos vs all drugA/drugB combos
 '''
 
+#%% Let's make sure merging works properly
+"""
+this part of the script generates an input file (so-called summary_css_dss_ic50_synergy_smiles_study.csv)
+it uses raw files given by jing
+"""
+summary = pd.read_csv('/Users/zagidull/Documents/fimm_files/chemical_similarity/classifier/summary.csv', sep=',')
+cellline = pd.read_excel('/Users/zagidull/Documents/fimm_files/chemical_similarity/classifier/cell_line.xlsx')
+drugs = pd.read_excel('/Users/zagidull/Documents/fimm_files/chemical_similarity/classifier/drug-2.xlsx')
+
 #%% getting input and init'ing variables
 input_all = pd.read_csv('/Users/zagidull/Documents/fimm_files/chemical_similarity/classifier/summary_css_dss_ic50_synergy_smiles_study.csv', sep = ';')
 
@@ -93,3 +102,4 @@ with tqdm(total=timer) as pbar:
 # saving on disk
 with open('filter_input.pickle', 'wb') as f:
     pickle.dump(key_holder, f, pickle.HIGHEST_PROTOCOL)
+

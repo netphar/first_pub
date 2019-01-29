@@ -8,7 +8,7 @@ import pickle
 
 from func import locing
 
-sns.set(style="seaborn-colorblind")
+sns.set(style="ticks")
 sns.set(rc={'figure.figsize': (15.7, 7.27)})
 
 #with open('filter_input.pickle', 'wb') as f:
