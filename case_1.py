@@ -100,7 +100,7 @@ theta = np.linspace(0.0, 2 * np.pi, N, endpoint=False)
 radii = counts.values
 width = np.pi / 4 * np.random.rand(N)
 
-ax = plt.subplot(111)
+ax = plt.subplot(111, projection='aitoff')
 bars = ax.bar(theta, radii, width=width, bottom=0.0)
 
 # Use custom colors and opacity
