@@ -24,7 +24,7 @@ diffs = sum(pd.DataFrame(drugs_new_id == drugs_old_id)['id'])  # diffs is equal 
 #%% get counts of categorical data
 counts = drugs_new['class.combined'].value_counts()
 
-#%% draw stuff
+#%% OG pie, ahem donut
 labels = counts.axes[0].to_list()
 sizes = counts.values
 # only "explode" the 2nd slice (i.e. 'Hogs')
@@ -40,7 +40,7 @@ ax1.axis('equal')
 plt.tight_layout()
 plt.show()
 
-#%% alternative
+#%% alternative with legend in the center
 x = np.char.array(counts.axes[0].to_list())
 sizes = counts.values
 percent = 100.*sizes/sizes.sum()
@@ -60,14 +60,14 @@ fig = plt.gcf()
 fig.gca().add_artist(centre_circle)
 plt.show()
 
-#%% another alternative
+#%% barplot
 x = np.char.array(counts.axes[0].to_list())
 sizes = counts.values
 data = pd.DataFrame(data={'Drug count': sizes, 'Drug type': x})
 sns.barplot(x='Drug count', y='Drug type', data=data, palette='Spectral')
 plt.show()
 
-#%% third
+#%% there should be arrows here
 fig, ax = plt.subplots(figsize=(6, 3), subplot_kw=dict(aspect="equal"))
 
 recipe = np.char.array(counts.axes[0].to_list())
@@ -93,7 +93,7 @@ for i, p in enumerate(wedges):
 
 plt.show()
 
-#%% forth
+#%% forth should have been a pretty polar plot
 # Compute pie slices
 N = len(np.char.array(counts.axes[0].to_list()))
 theta = np.linspace(0.0, 2 * np.pi, N, endpoint=False)
@@ -109,3 +109,6 @@ for r, bar in zip(radii, bars):
     bar.set_alpha(0.5)
 
 plt.show()
+
+#$$
+# todo: create the same kind of plot for cells. Jing likes version with legend in the center
