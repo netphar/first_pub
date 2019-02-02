@@ -49,6 +49,37 @@ def sorter(x, name):
     out = out.loc[out['drug_col'] != 'ARSENIC TRIOXIDE']
     return out
 
+
+# r2_score(y_true, y_pred) # Correct!
+# r2_score(y_pred, y_true) # Incorrect!!!!
+
+def calc_train_R2(X_train, y_train, model):
+    '''returns in-sample R2 for already fit model.'''
+    predictions = model.predict(X_train)
+    r2 = r2_score(y_train, predictions)
+    mse = mean_squared_error(y_train, predictions)
+    rmse = np.sqrt(mse)
+    return r2, rmse
+
+
+def calc_validation_R2(X_validation, y_validation, model):
+    '''returns out-of-sample R2 for already fit model.'''
+    predictions = model.predict(X_validation)
+    r2 = r2_score(y_validation, predictions)
+    mse = mean_squared_error(y_validation, predictions)
+    rmse = np.sqrt(mse)
+    return r2, rmse
+
+
+def calc_metricsR2(X_train, y_train, X_validation, y_validation, model):
+    '''fits model and returns the R2 for in-sample error and out-of-sample error'''
+    model.fit(X_train, y_train)
+    train_error, train_error_rmse = calc_train_R2(X_train, y_train, model)
+    validation_error, validation_error_rmse = calc_validation_R2(X_validation, y_validation, model)
+    return train_error, validation_error, train_error_rmse, validation_error_rmse
+
+
+
 #%%
 values_synergy_new = pd.read_csv('/homes/bzagidul/test_grun/linR/drugs_synergy_css_09012019.csv', sep=',')
 names = np.unique(values_synergy_new['cell_line_name'])
@@ -185,11 +216,9 @@ for i, v in urgh_cleaned.items():
             print('cell line: %s' % i)
             print('outer iteration id: %s, inner iteration id: %s' % (iteration_outer, iteration_inner))
             print('r2_training: %s, r2_validation: %s, r2_test: %s' % (r2_training, r2_validation, r2_test))
-            print('naive_r2_training: %s, naive_r2_validation: %s, naive_r2_test: %s' % (
-            naive_r2_training, naive_r2_validation, naive_r2_test))
+            print('naive_r2_training: %s, naive_r2_validation: %s, naive_r2_test: %s' % (naive_r2_training, naive_r2_validation, naive_r2_test))
             print('rmse_training: %s, rmse_validation: %s, rmse_test: %s' % (rmse_training, rmse_validation, rmse_test))
-            print('naive_rmse_training: %s, naive_rmse_validation: %s, naive_rmse_test: %s' % (
-            naive_rmse_training, naive_rmse_validation, naive_rmse_test))
+            print('naive_rmse_training: %s, naive_rmse_validation: %s, naive_rmse_test: %s' % (naive_rmse_training, naive_rmse_validation, naive_rmse_test))
             iteration_inner = iteration_inner + 1
         iteration_outer = iteration_outer + 1
 
