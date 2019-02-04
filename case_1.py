@@ -1,6 +1,6 @@
 """
-this script generates a descriptive analysis of the drugs present in drugcomb database from the following file
-drugs.new.xlsx
+this script generates a descriptive analysis of the drugs and cell lines present in drugcomb database
+from the following files drugs.new.xlsx and cell_line.xlsx
 """
 import seaborn as sns
 import pandas as pd
@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import datetime
 
 #sns.set(style="ticks")
-#sns.set(rc={'figure.figsize': (15.7, 7.27)})
+sns.set(rc={'figure.figsize': (15.7, 7.27)})
 
 
 #%% first we need to load the files. Let's compare old drugs file wiht with the new drugs file
@@ -30,6 +30,7 @@ counts_tissue = tissue['tissue_name'].value_counts()
 #%% THIS IS A WORKING ONE
 fig1, (ax1, ax2) = plt.subplots(ncols=2)
 sns.set_style("whitegrid")
+sns.set_context('paper')
 
 # drug types
 x = np.char.array(counts.axes[0].to_list())
