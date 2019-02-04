@@ -250,3 +250,27 @@ with open('lr_r2_all.pickle', 'wb') as f:
     pickle.dump(lr_r2_all, f, pickle.HIGHEST_PROTOCOL)
 with open('lr_rmse_all.pickle', 'wb') as f:
     pickle.dump(lr_rmse_all, f, pickle.HIGHEST_PROTOCOL)
+
+#%%
+# scp -P 22 bzagidul@atlas.fimm.fi:/homes/bzagidul/test_grun/linR/averages_17012019/l* ~/Desktop/
+
+with open("/Users/zagidull/Documents/fimm_files/chemical_similarity/classifier/lr_r2_all_noT98G.pickle", "rb") as f:
+    lr_r2_all_noT98G = pickle.load(f)
+with open("/Users/zagidull/Documents/fimm_files/chemical_similarity/classifier/lr_rmse_all_noT98G.pickle", "rb") as f:
+    lr_rmse_all_noT98G = pickle.load(f)
+with open("/Users/zagidull/Desktop/lr_r2_all.pickle", "rb") as f:
+    lr_r2_all = pickle.load(f)
+with open("/Users/zagidull/Desktop/lr_rmse_all.pickle", "rb") as f:
+    lr_rmse_all = pickle.load(f)
+
+
+#%%
+import seaborn as sns
+sns.set()
+import matplotlib.pyplot as plt
+sns.kdeplot(lr_r2_all_noT98G['_786-0_smiles_17012019.csv']['LR_test'], label='LR_test_old')
+sns.kdeplot(lr_r2_all['_786-0_smiles_17012019.csv']['LR_test'], label='LR_test_new')
+#sns.kdeplot(lr_r2_all_noT98G['_786-0_smiles_17012019.csv']['Naive_test'], label='Naive_test_old')
+#sns.kdeplot(lr_r2_all['_786-0_smiles_17012019.csv']['Naive_test'], label='Naive_test_new')
+plt.legend()
+plt.show()

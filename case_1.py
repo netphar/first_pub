@@ -6,9 +6,10 @@ import seaborn as sns
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import datetime
 
-sns.set(style="ticks")
-sns.set(rc={'figure.figsize': (15.7, 7.27)})
+#sns.set(style="ticks")
+#sns.set(rc={'figure.figsize': (15.7, 7.27)})
 
 
 #%% first we need to load the files. Let's compare old drugs file wiht with the new drugs file
@@ -25,6 +26,82 @@ diffs = sum(pd.DataFrame(drugs_new_id == drugs_old_id)['id'])  # diffs is equal 
 #%% get counts of categorical data
 counts = drugs_new['class.combined'].value_counts()
 counts_tissue = tissue['tissue_name'].value_counts()
+
+#%% THIS IS A WORKING ONE
+fig1, (ax1, ax2) = plt.subplots(ncols=2)
+sns.set_style("whitegrid")
+
+# drug types
+x = np.char.array(counts.axes[0].to_list())
+sizes = counts.values
+percent = 100.*sizes/sizes.sum()
+
+labels = ['{0} - {1:1.2f}%'.format(i, j) for i, j in zip(x, percent)]
+# only "explode" the 1st slice (i.e. 'Unknowns')
+explode = (0.03, 0, 0, 0, 0, 0, 0, 0, 0)
+patches, _ = ax1.pie(sizes, startangle=90, radius=1.2, explode=explode, colors=sns.color_palette('deep'),
+                     wedgeprops={"edgecolor": "w", 'linewidth': 0, 'linestyle': 'solid', 'antialiased': True})
+patches, labels, _ = zip(*sorted(zip(patches, labels, sizes),
+                                     key=lambda x: x[2],
+                                     reverse=True))
+ax1.legend(patches, labels, loc='center', fontsize=10)
+centre_circle = plt.Circle((0, 0), 0.70, fc='white')
+ax1.add_patch(centre_circle)
+ax1.set_title('Drug types. Total count = 2285', fontsize=18)
+
+# cell types
+x1 = np.char.array(counts_tissue.axes[0].to_list())
+sizes1 = counts_tissue.values
+percent1 = 100.*sizes1/sizes1.sum()
+percent1 = percent1.round(2)
+labels1 = ['{0}%'.format(i) for i in percent1]
+
+# data1 = pd.DataFrame(data={'Cell line count': sizes1, 'Tissue type': x1})
+#sns.barplot(x='Cell line count', y='Tissue type', data=data1, palette=sns.color_palette('Blues_r', n_colors=len(sizes1)))
+
+ccc = sns.light_palette((60, 75, 60), input="husl", n_colors=len(x1), reverse=True)
+ax2.barh(x1, sizes1,   color=sns.color_palette(ccc), align='center', linewidth=0)
+ax2.invert_yaxis()
+ax2.yaxis.grid(False)
+
+def normaliseCounts(widths,maxwidth):
+    '''
+    :param widths: this a list of current widths for rectangular object returned by plt.bar / sns.barplot
+    :param maxwidth: this is to value to which we are scaling
+    :return: list of the same length as input, but scaled according to maxwiddth
+    '''
+    widths = np.array(widths)/float(maxwidth)
+    return widths
+
+columncounts = [70, 70, 70, 70, 70, 70, 70, 70, 70, 70]
+widthbars = normaliseCounts(columncounts,100)
+
+
+for bar, newwidth, value in zip(ax2.patches, widthbars, labels1):
+    x = bar.get_x()
+
+    height = bar.get_height()
+    centre = x+height/2.
+
+    #bar.set_x(centre-newwidth/2.)
+    #bar.set_height(newwidth)
+    y_loc = bar.get_y()+bar.get_height()/2.
+    ax2.annotate(value, xy=(bar.get_x()+1, y_loc), xytext=(0, 0), ha='center', va='center', fontsize=10, color='black',
+                 rotation=0, textcoords='offset points')
+
+ax2.tick_params(labelsize=10)
+
+ax2.set_ylabel('')
+ax2.set_xlabel('Count')
+ax2.set_title('Cell line types. Total count = 93', fontsize=18)
+
+fig1.tight_layout()
+now = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
+filename = 'case1_' + now +'.png'
+
+fig1.savefig(filename, dpi = 600)
+plt.close(fig1)
+#plt.show()
 
 #%% OG pie, ahem donut
 # labels = counts.axes[0].to_list()
@@ -322,98 +399,91 @@ counts_tissue = tissue['tissue_name'].value_counts()
 # sns.barplot(x='Cell line count', y='Tissue type', data=data, palette='pastel')
 # plt.show()
 
-#%%
-fig1, (ax1, ax2) = plt.subplots(ncols=2)
-x = np.char.array(counts.axes[0].to_list())
-sizes = counts.values
-percent = 100.*sizes/sizes.sum()
-current_palette = sns.color_palette()
-labels = ['{0} - {1:1.2f} %'.format(i,j) for i,j in zip(x, percent)]
-# only "explode" the 2nd slice (i.e. 'Hogs')
-explode = (0.1, 0, 0, 0, 0, 0, 0, 0, 0)
-patches, _ = ax1.pie(sizes, startangle=90, radius=1.2, explode=explode,colors=current_palette)
-patches, labels, _ = zip(*sorted(zip(patches, labels, sizes),
-                                     key=lambda x: x[2],
-                                     reverse=True))
-fig1.legend(patches, labels, loc='center', bbox_to_anchor=(0.25, 0.5),
-           fontsize=8)
-centre_circle = plt.Circle((0,0),0.70,fc='white')
-ax1.add_patch(centre_circle)
-ax1.set_title('Drug types', y=1.05, fontsize=10)
+# #%%
+# fig1, (ax1, ax2) = plt.subplots(ncols=2)
+# x = np.char.array(counts.axes[0].to_list())
+# sizes = counts.values
+# percent = 100.*sizes/sizes.sum()
+# current_palette = sns.color_palette()
+# labels = ['{0} - {1:1.2f} %'.format(i,j) for i,j in zip(x, percent)]
+# # only "explode" the 2nd slice (i.e. 'Hogs')
+# explode = (0.1, 0, 0, 0, 0, 0, 0, 0, 0)
+# patches, _ = ax1.pie(sizes, startangle=90, radius=1.2, explode=explode,colors=current_palette)
+# patches, labels, _ = zip(*sorted(zip(patches, labels, sizes),
+#                                      key=lambda x: x[2],
+#                                      reverse=True))
+# fig1.legend(patches, labels, loc='center', bbox_to_anchor=(0.25, 0.5),
+#            fontsize=8)
+# centre_circle = plt.Circle((0,0),0.70,fc='white')
+# ax1.add_patch(centre_circle)
+# ax1.set_title('Drug types', y=1.05, fontsize=10)
+#
+# x = np.char.array(counts_tissue.axes[0].to_list())
+# sizes = counts_tissue.values
+# percent = 100.*sizes/sizes.sum()
+# current_palette = sns.color_palette()
+# labels = ['{0} - {1:1.2f} %'.format(i,j) for i,j in zip(x, percent)]
+# # only "explode" the 2nd slice (i.e. 'Hogs')
+# explode = (0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+# patches, _ = ax2.pie(sizes, startangle=90, radius=1.2, explode=explode, colors=current_palette)
+# patches, labels, _ = zip(*sorted(zip(patches, labels, sizes),
+#                                      key=lambda x: x[2],
+#                                      reverse=True))
+# fig1.legend(patches, labels, loc='center', bbox_to_anchor=(0.75, 0.5),
+#            fontsize=8)
+# centre_circle = plt.Circle((0,0),0.80,fc='white')
+# ax2.add_patch(centre_circle)
+#
+# ax2.set_title('Cell line types', y=1.05, fontsize=10)
+#
+# fig1 = plt.gcf()
+# fig1.gca().add_artist(centre_circle)
+# fig1.savefig('pie_pie.png')
+# plt.show()
 
-x = np.char.array(counts_tissue.axes[0].to_list())
-sizes = counts_tissue.values
-percent = 100.*sizes/sizes.sum()
-current_palette = sns.color_palette()
-labels = ['{0} - {1:1.2f} %'.format(i,j) for i,j in zip(x, percent)]
-# only "explode" the 2nd slice (i.e. 'Hogs')
-explode = (0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-patches, _ = ax2.pie(sizes, startangle=90, radius=1.2, explode=explode, colors=current_palette)
-patches, labels, _ = zip(*sorted(zip(patches, labels, sizes),
-                                     key=lambda x: x[2],
-                                     reverse=True))
-fig1.legend(patches, labels, loc='center', bbox_to_anchor=(0.75, 0.5),
-           fontsize=8)
-centre_circle = plt.Circle((0,0),0.70,fc='white')
-ax2.add_patch(centre_circle)
-
-ax2.set_title('Cell line types', y=1.05, fontsize=10)
-
-fig1 = plt.gcf()
-fig1.gca().add_artist(centre_circle)
-fig1.savefig('pie_pie.png')
-plt.show()
-
-#%%
-fig1, (ax1, ax2) = plt.subplots(ncols=2)
-x = np.char.array(counts.axes[0].to_list())
-sizes = counts.values
-percent = 100.*sizes/sizes.sum()
-current_palette = sns.color_palette()
-labels = ['{0} - {1:1.2f} %'.format(i,j) for i,j in zip(x, percent)]
-# only "explode" the 2nd slice (i.e. 'Hogs')
-explode = (0.1, 0, 0, 0, 0, 0, 0, 0, 0)
-patches, _ = ax1.pie(sizes, startangle=90, radius=1.2, explode=explode,colors=current_palette)
-patches, labels, _ = zip(*sorted(zip(patches, labels, sizes),
-                                     key=lambda x: x[2],
-                                     reverse=True))
-fig1.legend(patches, labels, loc='center', bbox_to_anchor=(0.25, 0.5),
-           fontsize=8)
-centre_circle = plt.Circle((0, 0), 0.70, fc='white')
-ax1.add_patch(centre_circle)
-ax1.set_title('Drug types', y=1.05, fontsize=10)
-
-
-
-x1 = np.char.array(counts_tissue.axes[0].to_list())
-sizes1 = counts_tissue.values
-percent1 = 100.*sizes1/sizes1.sum()
-labels1 = ['{0} - {1:1.2f} %'.format(i,j) for i,j in zip(x1, percent1)]
-
-patches1, labels1, _ = zip(*sorted(zip(patches, labels, sizes),
-                                     key=lambda x: x[2],
-                                     reverse=True))
-data1 = pd.DataFrame(data={'Cell line count': sizes1, 'Tissue type': x1})
-sns.barplot(x='Cell line count', y='Tissue type', data=data1, palette='pastel')
-ax2.set_title('Cell line types', y=1.05, fontsize=10)
-plt.show()
-
-fig = ax1.get_figure()
-fig.savefig('pie_bar.png')
 
 #%%
-import pickle
-with open('/Users/zagidull/Desktop/filter_input.pickle', 'rb') as f:
-    # The protocol version used is detected automatically, so we do not
-    # have to specify it.
-    data2 = pickle.load(f)
+# import pickle
+# with open('/Users/zagidull/Desktop/filter_input.pickle', 'rb') as f:
+#     # The protocol version used is detected automatically, so we do not
+#     # have to specify it.
+#     data2 = pickle.load(f)
+#
+# with open('/Users/zagidull/PycharmProjects/test_scientific/filter_input.pickle', 'rb') as f:
+#     # The protocol version used is detected automatically, so we do not
+#     # have to specify it.
+#     data1 = pickle.load(f)
+#
+#
+#
+# if data2 == data1:
+#     print('yay')
 
-with open('/Users/zagidull/PycharmProjects/test_scientific/filter_input.pickle', 'rb') as f:
-    # The protocol version used is detected automatically, so we do not
-    # have to specify it.
-    data1 = pickle.load(f)
+#%%
+# sns.set_context("paper")
+# sns.set_style("darkgrid")
+#
+# fig1, ax1 = plt.subplots(nrows=1, ncols=1, figsize=(11.69, 8.27))
+#
+#
+# x = np.char.array(counts.axes[0].to_list())
+# sizes = counts.values
+# percent = 100.*sizes/sizes.sum()
+#
+# current_palette = sns.color_palette()
+# labels = ['{0} - {1:1.2f} %'.format(i, j) for i, j in zip(x, percent)]
+# explode = (0.1, 0, 0, 0, 0, 0, 0, 0, 0)
+#
+# patches, _ = ax1.pie(sizes, startangle=90, radius=1.1, explode=explode, colors=current_palette)
+# patches, labels, _ = zip(*sorted(zip(patches, labels, sizes),
+#                                      key=lambda x: x[2],
+#                                      reverse=True))
+#
+# plt.legend(patches, labels, loc='center', bbox_to_anchor=(0.5, 0.5), fontsize=10)
+# centre_circle = plt.Circle((0, 0), 0.70, fc='white')
+# ax1.add_patch(centre_circle)
+# ax1.set_title('Drug types', y=1, fontsize=18)
+# ax1.axis('equal')
+#
+# plt.show()
 
-
-
-if data2 == data1:
-    print('yay')
