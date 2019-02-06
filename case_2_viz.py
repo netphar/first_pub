@@ -90,6 +90,58 @@ fig.savefig(filename, dpi=600)
 plt.close(fig)
 
 
+#%% for jing's presentation at SLAS
+sns.set_style("whitegrid")
+sns.set_context('paper')
+
+al = list(set(al))
+on = list(set(on))
+#fig = plt.figure()
+#ax = fig.add_subplot(1, 1, 1)
+
+fig, ax = plt.subplots(ncols=1)
+
+sns.distplot(single_sd, ax=ax, hist=False, kde=True, rug=False, kde_kws={'linewidth': 2},
+             hist_kws={"histtype": "step", 'linewidth': 1, "alpha": 1}, bins='auto', color='blue',
+             label='in single study: ' + str(len(single_sd)))
+sns.distplot(multiple_sd, ax=ax, hist=False, kde=True, rug=False, kde_kws={'linewidth': 2},
+             hist_kws={"histtype": "step", 'linewidth': 1, "alpha": 1}, bins='auto', color='red',
+             label='in multiple studies: ' + str(len(multiple_sd)))
+sns.distplot(al, ax=ax, hist=False, kde=True, rug=False, kde_kws={'linewidth': 2},
+             hist_kws={"histtype": "step", 'linewidth': 1, "alpha": 1}, bins='auto', color='green',
+             label='in ALMANAC, all cell lines: ' + str(len(al)))
+sns.distplot(on, ax=ax, hist=False, kde=True, rug=False, kde_kws={'linewidth': 2},
+             hist_kws={"histtype": "step", 'linewidth': 1, "alpha": 1}, bins='auto', color='violet',
+             label='in O\'NEIL, all cell lines: ' + str(len(on)))
+
+ax.legend(fontsize=20, loc='upper right')
+
+ax.tick_params(labelsize=20)
+
+ax.grid(b=True, which='major', color='k', linestyle='--', alpha=0.1)
+
+
+
+fig.suptitle('SD of CSS values of drugA & drugB & cell line combinations', fontsize=30)
+#ax1.set_title('cell line specific', fontsize=14)
+#ax2.set_title('found in multiple studies / study specific / not cell line specific', fontsize=14)
+
+ax.set_ylabel('Density', fontsize=24)
+ax.set_xlabel('SD', fontsize=24)
+#ax2.set_xlabel('SD', fontsize=12)
+
+fig.tight_layout()
+fig.subplots_adjust(top=0.88)
+now = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
+filename = 'case2_merged_' + now +'.pdf'
+
+#plt.show()
+# to_save = plt.gcf()
+# #to_save.savefig('sd of CSS values.png')
+fig.savefig(filename, dpi=600)
+plt.close(fig)
+
+
 
 # #%%  just picking up examples that are present in multiple studies and sorting them from highest to lowest
 # for_sorting = {}
