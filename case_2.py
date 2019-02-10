@@ -100,6 +100,9 @@ with tqdm(total=timer) as pbar:
         pbar.update(1)
 
 # saving on disk
-with open('filter_input.pickle', 'wb') as f:
-    pickle.dump(key_holder, f, pickle.HIGHEST_PROTOCOL)
+# with open('filter_input.pickle', 'wb') as f:
+#     pickle.dump(key_holder, f, pickle.HIGHEST_PROTOCOL)
 
+#%%
+with open('/Users/zagidull/PycharmProjects/test_scientific/filter_input.pickle', 'rb') as f:
+    x = pickle.load(f)
