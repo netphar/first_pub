@@ -1,5 +1,5 @@
 '''
-THIS VERSION IS USED FOR RUNNING ON DrugComb server
+THIS VERSION IS USED FOR RUNNING ON DrugComb server v0.2
 
 AGAIN FOR RUNNING ON ATLAS
 https://stats.stackexchange.com/questions/139042/ensemble-of-different-kinds-of-regressors-using-scikit-learn-or-any-other-pytho
@@ -22,7 +22,8 @@ from sklearn.kernel_ridge import KernelRidge
 
 # %%
 # this retarded way is something we are doing to match filenames to cell lines
-directory = os.fsencode('/home/bulat/KBM7/averages_17012019')
+categ = '/Users/zagidull/Documents/fimm_files/chemical_similarity/classifier/'
+directory = os.fsencode(categ+'averages_17012019')
 
 count = 0
 urgh = []
@@ -35,7 +36,7 @@ for file in os.listdir(directory):
         continue
     else:
         continue
-print(count)
+print(count, urgh)
 
 # %%
 urgh_cleaned = {}
@@ -44,7 +45,7 @@ for file in urgh:
     match = re.findall("_(.*?)_", s)
     urgh_cleaned[s] = match[0]
 #    print(match[0])
-print(len(urgh_cleaned))
+print(len(urgh_cleaned), urgh_cleaned)
 
 
 # %%
@@ -86,18 +87,18 @@ def calc_metricsR2(X_train, y_train, X_validation, y_validation, model):
 
 # %%
 values_synergy_new = pd.read_csv(
-    '/home/bulat/KBM7/drugs_synergy_css_09012019_updatedCSS.csv',
+    categ+'drugs_synergy_css_09012019_updatedCSS.csv',
     sep=';')
 names = np.unique(values_synergy_new['cell_line_name'])
 
 smiles_holder = pd.read_csv(
-    '/home/bulat/KBM7/summary_css_dss_ic50_synergy_smiles.csv',
+    categ+'summary_css_dss_ic50_synergy_smiles.csv',
     sep=';')
 smiles_holder.drop(columns=['Unnamed: 0'], inplace=True)
 all_holder = {name: sorter(smiles_holder, name) for name in names}
 
 # %%
-os.chdir('/home/bulat/KBM7/averages_17012019')
+os.chdir(categ +'averages_17012019')
 
 to_drop = ['drug_row', 'drug_col', 'block_id', 'drug_row_id', 'drug_col_id', 'cell_line_id', 'synergy_zip',
            'synergy_bliss', 'synergy_loewe', 'synergy_hsa', 'ic50_row', 'ic50_col', 'cell_line_name', 'smiles_row',
@@ -109,8 +110,10 @@ lr_rmse_all = {}
 svr_rmse_all = {}
 ridge_rmse_all = {}
 lasso_rmse_all = {}
+param_holder = {}
 
 for i, v in urgh_cleaned.items():
+    print(v)
     if v == 'KBM-7':
         test = pd.read_csv(i, sep=';')
         print(i, v)
@@ -126,21 +129,21 @@ for i, v in urgh_cleaned.items():
         kfold = KFold(n_splits=5, shuffle=True, random_state=1)
 
         # folds for outer CV
-        kfold_outer = KFold(n_splits=2, shuffle=True, random_state=2)
+        kfold_outer = KFold(n_splits=3, shuffle=True, random_state=2)
 
         # fit on split train data
-        lr_split = LinearRegression(fit_intercept=False, n_jobs=-1)
+        lr_split = LinearRegression(fit_intercept=False, n_jobs=3)
         svr = GridSearchCV(SVR(kernel='rbf', gamma=0.1), cv=5,
                            param_grid={"C": [1e0, 1e1, 1e2, 1e3],
-                                       "gamma": np.logspace(-2, 2, 5)}, n_jobs=-1)
+                                       "gamma": np.logspace(-2, 2, 5)}, n_jobs=3)
 
         kr = GridSearchCV(KernelRidge(kernel='rbf', gamma=0.1), cv=5,
                           param_grid={"alpha": [1e0, 0.1, 1e-2, 1e-3],
-                                      "gamma": np.logspace(-2, 2, 5)}, n_jobs=-1)
+                                      "gamma": np.logspace(-2, 2, 5)}, n_jobs=3)
         ridge = GridSearchCV(Ridge(), cv=5, param_grid={"alpha": [0.001, 0.01, 0.1, 1, 10, 100, 1000, 10000, 100000],
-                                                        "fit_intercept": ['True', 'False']}, n_jobs=-1)
+                                                        "fit_intercept": ['True', 'False']}, n_jobs=3)
         lasso = GridSearchCV(Lasso(), cv=5, param_grid={"alpha": [0.01, 0.1, 1, 10, 100],
-                                                        "fit_intercept": ['True', 'False']}, n_jobs=-1)
+                                                        "fit_intercept": ['True', 'False']}, n_jobs=3)
 
         # placeholders for results
         rmse_all_training_svr, rmse_all_validation_svr, rmse_all_test_svr = [], [], []
@@ -165,6 +168,7 @@ for i, v in urgh_cleaned.items():
             # storing data
             tostore = dict(zip(['test', 'test_val', ], [test, test_val]))
             holder_outer[iteration_outer] = tostore
+            param_inner = {}
 
             for train, validation in kfold.split(xt):
                 # leaving css_row and css_col increases r2 by 0.1
@@ -211,11 +215,11 @@ for i, v in urgh_cleaned.items():
                                                                             xt2.iloc[validation],
                                                                             yt.iloc[validation], kr)
                 _, _, rmse_training_lasso, rmse_validation_lasso = calc_metricsR2(xt2.iloc[train], yt.iloc[train],
-                                                                            xt2.iloc[validation],
-                                                                            yt.iloc[validation], lasso)
+                                                                                  xt2.iloc[validation],
+                                                                                  yt.iloc[validation], lasso)
                 _, _, rmse_training_ridge, rmse_validation_ridge = calc_metricsR2(xt2.iloc[train], yt.iloc[train],
-                                                                            xt2.iloc[validation],
-                                                                            yt.iloc[validation], ridge)
+                                                                                  xt2.iloc[validation],
+                                                                                  yt.iloc[validation], ridge)
                 yt_predicted = lr_split.predict(xtt2)
                 yt_predicted_svr = svr.predict(xtt2)
                 yt_predicted_kr = kr.predict(xtt2)
@@ -225,8 +229,8 @@ for i, v in urgh_cleaned.items():
                 rmse_test = np.sqrt(mean_squared_error(ytt, yt_predicted))
                 rmse_test_svr = np.sqrt(mean_squared_error(ytt, yt_predicted_svr))
                 rmse_test_kr = np.sqrt(mean_squared_error(ytt, yt_predicted_kr))
-                rmse_test_ridge = np.sqrt(mean_squared_error(ytt, yt_predicted_lasso))
-                rmse_test_lasso = np.sqrt(mean_squared_error(ytt, yt_predicted_ridge))
+                rmse_test_ridge = np.sqrt(mean_squared_error(ytt, yt_predicted_ridge))
+                rmse_test_lasso = np.sqrt(mean_squared_error(ytt, yt_predicted_lasso))
 
                 tostore1 = dict(zip(['train', 'validation', 'xt2.iloc[train]', 'yt.iloc[train]', 'xt2.iloc[validation]',
                                      'yt.iloc[validation]', 'ytt', 'yt_predicted', 'yt_predicted_svr',
@@ -234,7 +238,14 @@ for i, v in urgh_cleaned.items():
                                     [train, validation, xt2.iloc[train], yt.iloc[train], xt2.iloc[validation],
                                      yt.iloc[validation], ytt, yt_predicted, yt_predicted_svr, yt_predicted_kr,
                                      yt_predicted_lasso, yt_predicted_ridge, xtt]))
+
                 holder_inner[iteration_inner] = tostore1
+
+                # get params from the best model
+                toStore2 = dict(zip(['LR', 'lasso', 'ridge', "kr", 'svr'], [lr_split.get_params(), lasso.get_params(),
+                                                                            ridge.get_params(), kr.get_params(),
+                                                                            svr.get_params]))
+                param_inner[iteration_inner] = toStore2
 
                 # append to result holders
                 rmse_training, rmse_validation, rmse_test = round(rmse_training, 3), round(rmse_validation, 3), round(
@@ -282,18 +293,19 @@ for i, v in urgh_cleaned.items():
                 print('cell line: %s' % i)
                 print('outer iteration id: %s, inner iteration id: %s' % (iteration_outer, iteration_inner))
                 print('rmse_training: %s, rmse_validation: %s, rmse_test: %s' % (
-                rmse_training, rmse_validation, rmse_test))
+                    rmse_training, rmse_validation, rmse_test))
                 print('rmse_training_kr: %s, rmse_validation_kr: %s, rmse_test_kr: %s' % (
-                rmse_training_kr, rmse_validation_kr, rmse_test_kr))
+                    rmse_training_kr, rmse_validation_kr, rmse_test_kr))
                 print('rmse_training_lasso: %s, rmse_validation_lasso: %s, rmse_test_lasso: %s' % (
-                rmse_training_lasso, rmse_validation_lasso, rmse_test_lasso))
+                    rmse_training_lasso, rmse_validation_lasso, rmse_test_lasso))
                 print('rmse_training_ridge: %s, rmse_validation_ridge: %s, rmse_test_ridge: %s' % (
-                rmse_training_ridge, rmse_validation_ridge, rmse_test_ridge))
+                    rmse_training_ridge, rmse_validation_ridge, rmse_test_ridge))
                 print('rmse_training_svr: %s, rmse_validation_svr: %s, rmse_test_svr: %s' % (
-                rmse_training_svr, rmse_validation_svr, rmse_test_svr))
+                    rmse_training_svr, rmse_validation_svr, rmse_test_svr))
                 print('naive_rmse_training: %s, naive_rmse_validation: %s, naive_rmse_test: %s' % (
-                naive_rmse_training, naive_rmse_validation, naive_rmse_test))
+                    naive_rmse_training, naive_rmse_validation, naive_rmse_test))
                 iteration_inner = iteration_inner + 1
+            param_holder[iteration_outer] = param_inner
             iteration_outer = iteration_outer + 1
 
         linR_rmse_fitF = pd.concat(
@@ -327,10 +339,12 @@ for i, v in urgh_cleaned.items():
             columns={0: "KR_training", 1: "Naive_training", 2: "KR_validation", 3: "Naive_validation", 4: "KR_test",
                      5: "Naive_test"}, inplace=True)
         linR_rmse_fitF_lasso.rename(
-            columns={0: "Lasso_training", 1: "Naive_training", 2: "Lasso_validation", 3: "Naive_validation", 4: "Lasso_test",
+            columns={0: "Lasso_training", 1: "Naive_training", 2: "Lasso_validation", 3: "Naive_validation",
+                     4: "Lasso_test",
                      5: "Naive_test"}, inplace=True)
         linR_rmse_fitF_ridge.rename(
-            columns={0: "Ridge_training", 1: "Naive_training", 2: "Ridge_validation", 3: "Naive_validation", 4: "Ridge_test",
+            columns={0: "Ridge_training", 1: "Naive_training", 2: "Ridge_validation", 3: "Naive_validation",
+                     4: "Ridge_test",
                      5: "Naive_test"}, inplace=True)
 
         lr_rmse_all[i] = linR_rmse_fitF
@@ -342,13 +356,31 @@ for i, v in urgh_cleaned.items():
     else:
         pass
 
-with open('/home/bulat/KBM7/lr_rmse_all.pickle', 'wb') as f:
+label = '/home/bulat/KBM7/results/'
+with open(label + 'KBM_lr_rmse_all.pickle',
+          'wb') as f:
     pickle.dump(lr_rmse_all, f, pickle.HIGHEST_PROTOCOL)
-with open('/home/bulat/KBM7/kr_rmse_all.pickle', 'wb') as f:
+with open(label + 'KBM_kr_rmse_all.pickle',
+          'wb') as f:
     pickle.dump(kr_rmse_all, f, pickle.HIGHEST_PROTOCOL)
-with open('/home/bulat/KBM7/svr_rmse_all.pickle', 'wb') as f:
+with open(label + 'KBM_svr_rmse_all.pickle',
+          'wb') as f:
     pickle.dump(svr_rmse_all, f, pickle.HIGHEST_PROTOCOL)
-with open('/home/bulat/KBM7/lasso_rmse_all.pickle', 'wb') as f:
+with open(label + 'KBM_lasso_rmse_all.pickle',
+          'wb') as f:
     pickle.dump(lasso_rmse_all, f, pickle.HIGHEST_PROTOCOL)
-with open('/home/bulat/KBM7/ridge_rmse_all.pickle', 'wb') as f:
+with open(label + 'KBM_ridge_rmse_all.pickle',
+          'wb') as f:
     pickle.dump(ridge_rmse_all, f, pickle.HIGHEST_PROTOCOL)
+
+with open(label + 'KBM_holder_inner.pickle',
+          'wb') as f:
+    pickle.dump(holder_inner, f, pickle.HIGHEST_PROTOCOL)
+
+with open(label + 'KBM_holder_outer.pickle',
+          'wb') as f:
+    pickle.dump(holder_outer, f, pickle.HIGHEST_PROTOCOL)
+
+with open(label + 'KBM_param_holder.pickle',
+          'wb') as f:
+    pickle.dump(param_holder, f, pickle.HIGHEST_PROTOCOL)
