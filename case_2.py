@@ -106,3 +106,125 @@ with tqdm(total=timer) as pbar:
 #%%
 with open('/Users/zagidull/PycharmProjects/test_scientific/filter_input.pickle', 'rb') as f:
     x = pickle.load(f)
+
+#%%
+holder = {}
+for i,v in x.items():
+    if v['type'] == 'multiple_study' and v['study'] == {'ALMANAC', 'ONEIL'}:
+        holder[i] = v['sd']
+#%%
+sd = []
+for i,v in holder.items():
+    sd.append(v)
+
+#%%
+count = 0
+count1 = 0
+count2 = 0
+mult = {} # this holds 604 combos which are replicated across studies
+oneil = {}
+alma = {}
+for i,v in x.items():
+    if v['type'] == 'multiple_study' and v['study'] == {'ALMANAC', 'ONEIL'}:
+        mult[i] = v['sd_cell_line']
+        count += 1
+    if v['type'] == 'single_study' and v['study'] == {'ONEIL'}:
+        oneil[i] = v['sd']
+        count1 += 1
+    if v['type'] == 'single_study' and v['study'] == {'ALMANAC'}:
+        alma[i] = v['sd']
+        count2 += 1
+print(count, count1, count2)
+#%%
+mult1 = []
+oneil1 = []
+alma1 = []
+for i,v in mult.items():
+    mult1.append(v)
+for i,v in oneil.items():
+    oneil1.append(v)
+for i,v in alma.items():
+    alma1.append(v)
+
+#%% wilcoxon sum ranked test
+# scipy.stats.wilcoxon(oneil1, mult1) # cannot be performed with unequal N in wilcoxon, so use
+
+from scipy.stats import mannwhitneyu
+mannwhitneyu(oneil1, mult1)
+
+#%%
+count = 0
+oneil = {}
+almanac = {}
+for i,v in x.items():
+    if v['type'] == 'multiple_study' and v['study'] == {'ALMANAC', 'ONEIL'}:
+        almanac[i] = v['study_wide']['ALMANAC']['sd_study_wide']
+        oneil[i] = v['study_wide']['ONEIL']['sd_study_wide']
+        # if ['study_wide'] == 'ONEIL':
+        #     oneil[i] = v['study_wide']['ONEIL']['sd_study_wide']
+        print(i,v)
+        count += 1
+print(count)
+
+
+#%%
+oneil_sd = []
+almanac_sd = []
+for i,v in oneil.items():
+    oneil_sd.append(v)
+for i,v in almanac.items():
+    almanac_sd.append(v)
+
+#%%
+oneil_sd = list(set(oneil_sd))
+almanac_sd = list(set(almanac_sd))
+
+# %% for this part of the analyis we take a combination from D1-D2-Cell, get rid of a cell lines and then choose
+# randomly from all the cell lines present for a given combination of drugs. Thus we are making a negative control
+np.random.seed(3)
+count = 0
+negative_control = {}
+for i,v in mult.items():
+    drugA = i[0]
+    drugB = i[1]
+    notCell = i[2]
+    out_alm = input_all.loc[(input_all.drug_row_id == drugA) & (input_all.drug_col_id == drugB) &
+                            (input_all.cell_line_id != notCell) & (input_all.study == 'ALMANAC')
+                            ]
+    out_one = input_all.loc[(input_all.drug_row_id == drugA) & (input_all.drug_col_id == drugB) &
+                            (input_all.cell_line_id != notCell) & (input_all.study == 'ONEIL')
+                            ]
+#    print(np.append(out_alm, out_one).std())
+    if not out_alm.empty:
+        out_alm = round(out_alm.sample(n=1).css.iloc[0], 4)
+    else:
+        out_alm = round(input_all.loc[(input_all.drug_row_id == drugB) & (input_all.drug_col_id == drugA) &
+                            (input_all.cell_line_id != notCell) & (input_all.study == 'ALMANAC')
+                            ].css.iloc[0], 4)
+    if not out_one.empty:
+        out_one = round(out_one.sample(n=1).css.iloc[0], 4)
+    else:
+        out_one = round(input_all.loc[(input_all.drug_row_id == drugB) & (input_all.drug_col_id == drugA) &
+                            (input_all.cell_line_id != notCell) & (input_all.study == 'ONEIL')
+                            ].css.iloc[0], 4)
+
+    result = round(np.std([out_alm,out_one]), 4)
+    negative_control[i] = [out_alm,out_one,result]
+    # count += 1
+    # if count == 1:
+    #     break
+ #   negative_control.append(np.append(out_alm, out_one).std())
+
+#%%
+holder = []
+for i,v in negative_control.items():
+    holder.append(v[2])
+#%%
+holder_actual = []
+for i,v in mult.items():
+    holder_actual.append(v)
+
+#%% wilcoxon pair test
+from  scipy.stats import wilcoxon
+print(wilcoxon(holder,holder_actual))
+

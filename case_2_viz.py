@@ -16,31 +16,152 @@ sns.set(rc={'figure.figsize': (15.7, 7.27)})
 
 with open('/Users/zagidull/PycharmProjects/test_scientific/filter_input.pickle', 'rb') as f:
     data = pickle.load(f)
-#%% unpacking the dict to separate into single or multiple studies
-key_holder = data
-counter = 0
-single_sd = []
-multiple_sd = []
+input_all = pd.read_csv('/Users/zagidull/Documents/fimm_files/chemical_similarity/classifier/summary_css_dss_ic50_synergy_smiles_study.csv', sep = ';')
+
+#%% unpacking the dict to separate into single or multiple studies.
+# Single studies are then separated into ONEIL and ALMANAC
+x = data
+single_sd = []  # single study only css
+single_sd_oneil = []  # single ONEIL only css
+single_sd_almanac = []  # single ALMANAC only css
+multiple_sd = []  # multiple studies only css
+mult = {} # this holds 604 combos which are replicated across studies. Includes drugA-drugB-cellLine
+
+
 al = []
 on = []
 keys = []
-for key, value in key_holder.items():
+for key, value in x.items():
     if value['type'] == 'single_study':
         single_sd.append(value['sd'])
+        if value['study'] == {'ALMANAC'}:
+            single_sd_almanac.append(value['sd'])
+        if value['study'] == {'ONEIL'}:
+            single_sd_oneil.append(value['sd'])
     else:
-        keys.append(key)
+        # keys.append(key)
         multiple_sd.append(value['sd_cell_line'])
-        al.append(value['study_wide']['ALMANAC']['sd_study_wide'])
-        on.append(value['study_wide']['ONEIL']['sd_study_wide'])
+        # al.append(value['study_wide']['ALMANAC']['sd_study_wide'])
+        # on.append(value['study_wide']['ONEIL']['sd_study_wide'])
+        if value['type'] == 'multiple_study' and value['study'] == {'ALMANAC', 'ONEIL'}:
+            mult[key] = value['sd_cell_line']   # prepare negative controls. Which are the drugA+drugB from the combinations found in multiple studies,
+                                                # but tested in both ALMANAC or ONEIL in a different,randomly selected cell line
+
+#%%  creation of negative controls. Take drug combo, remove cell_line that was used in replicated combos and choose another at random
+# Need to reverse drugA and drugB if results of loc return empty
+# output is a dic with combo as key and a list of [css of random cell line in ALM, css of random cell line in ONE, std of those two combos
+np.random.seed(5)  # 3 wwas used with Jing
+negative_control = {}
+for i,v in mult.items():
+    drugA = i[0]
+    drugB = i[1]
+    notCell = i[2]
+    out_alm = input_all.loc[(input_all.drug_row_id == drugA) & (input_all.drug_col_id == drugB) &
+                            (input_all.cell_line_id != notCell) & (input_all.study == 'ALMANAC')
+                            ]
+    out_one = input_all.loc[(input_all.drug_row_id == drugA) & (input_all.drug_col_id == drugB) &
+                            (input_all.cell_line_id != notCell) & (input_all.study == 'ONEIL')
+                            ]
+#    print(np.append(out_alm, out_one).std())
+    if not out_alm.empty:
+        out_alm = round(out_alm.sample(n=1).css.iloc[0], 4)
+    else:
+        out_alm = round(input_all.loc[(input_all.drug_row_id == drugB) & (input_all.drug_col_id == drugA) &
+                            (input_all.cell_line_id != notCell) & (input_all.study == 'ALMANAC')
+                            ].css.iloc[0], 4)
+    if not out_one.empty:
+        out_one = round(out_one.sample(n=1).css.iloc[0], 4)
+    else:
+        out_one = round(input_all.loc[(input_all.drug_row_id == drugB) & (input_all.drug_col_id == drugA) &
+                            (input_all.cell_line_id != notCell) & (input_all.study == 'ONEIL')
+                            ].css.iloc[0], 4)
+    if i == (1, 31, 79):
+        print(out_alm,out_one)
+
+    result = round(np.std([out_alm,out_one]), 4)
+    negative_control[i] = [out_alm,out_one,result]
+
+negative_sd = []
+for i,v in negative_control.items():
+    negative_sd.append(v[2])
+#%%
+from scipy.stats import wilcoxon
+print(wilcoxon(negative_sd,multiple_sd))
+
+#%%
 
 # we have to use list(set()), since there is a lot of repeated elements, as we are searching several times for the same drug combo.
 # It happens because we are removing the cell_line part, and using study instead. Which results in that behavoir
 #%%
+sns.set()
+sns.set(rc={'figure.figsize': (15.7, 7.27)})
 sns.set_style("whitegrid")
 sns.set_context('paper')
+#
+# plt.rcParams["axes.grid.axis"] ="y"
+# plt.rcParams["axes.grid"] = True
 
-al = list(set(al))
-on = list(set(on))
+#%% for jing's presentation at SLAS
+
+
+fig, ax = plt.subplots(ncols=1)
+
+sns.distplot(single_sd_oneil, ax=ax, hist=False, kde=True, rug=False, kde_kws={'linewidth': 2},
+             hist_kws={"histtype": "step", 'linewidth': 1, "alpha": 1}, bins='auto', color='blue',
+             label='within ONEIL, n = ' + str(len(single_sd_oneil)))
+sns.distplot(single_sd_almanac, ax=ax, hist=False, kde=True, rug=False, kde_kws={'linewidth': 2},
+             hist_kws={"histtype": "step", 'linewidth': 1, "alpha": 1}, bins='auto', color='red',
+             label='within ALMANAC, n = ' + str(len(single_sd_almanac)))
+sns.distplot(multiple_sd, ax=ax, hist=False, kde=True, rug=False, kde_kws={'linewidth': 2},
+             hist_kws={"histtype": "step", 'linewidth': 1, "alpha": 1}, bins='auto', color='green',
+             label='between studies, n = ' + str(len(multiple_sd)))
+sns.distplot(negative_sd, ax=ax, hist=False, kde=True, rug=False, kde_kws={'linewidth': 2},
+             hist_kws={"histtype": "step", 'linewidth': 1, "alpha": 1}, bins='auto', color='violet',
+             label='between studies (negative control), n = ' + str(len(negative_sd)))
+
+# adding mean values as vertical lines
+alpha = 0.3
+linestyle = ':'
+plt.axvline(np.mean(single_sd_oneil), color='blue', linestyle=linestyle, alpha=alpha)
+plt.axvline(np.mean(single_sd_almanac), color='red', linestyle=linestyle, alpha=alpha)
+plt.axvline(np.mean(multiple_sd), color='green', linestyle=linestyle, alpha=alpha)
+plt.axvline(np.mean(negative_sd), color='violet', linestyle=linestyle, alpha=alpha)
+
+
+ax.legend(fontsize=20, loc='upper right')
+
+ax.tick_params(labelsize=20)
+
+ax.grid(b=True, which='major', color='whitesmoke')
+# ax.grid(linestyle=':',alpha=0.1)
+
+
+fig.suptitle('Replicability within and between studies', fontsize=30)
+#ax1.set_title('cell line specific', fontsize=14)
+#ax2.set_title('found in multiple studies / study specific / not cell line specific', fontsize=14)
+
+ax.set_ylabel('Density', fontsize=24)
+ax.set_xlabel('SD', fontsize=24)
+#ax2.set_xlabel('SD', fontsize=12)
+
+fig.tight_layout()
+fig.subplots_adjust(top=0.88)
+now = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
+#filename = 'case2_merged_' + now +'.eps'
+filename = 'case2_merged_' + now +'.png'
+
+
+#plt.show()
+# to_save = plt.gcf()
+# #to_save.savefig('sd of CSS values.png')
+fig.savefig(filename, format='png')
+plt.close(fig)
+
+
+#%%
+
+
+#%% OLD VERSION. USE THE ONE KING MADE FOR SLAS
 #fig = plt.figure()
 #ax = fig.add_subplot(1, 1, 1)
 
@@ -90,56 +211,6 @@ fig.savefig(filename, dpi=600)
 plt.close(fig)
 
 
-#%% for jing's presentation at SLAS
-sns.set_style("whitegrid")
-sns.set_context('paper')
-
-al = list(set(al))
-on = list(set(on))
-#fig = plt.figure()
-#ax = fig.add_subplot(1, 1, 1)
-
-fig, ax = plt.subplots(ncols=1)
-
-sns.distplot(single_sd, ax=ax, hist=False, kde=True, rug=False, kde_kws={'linewidth': 2},
-             hist_kws={"histtype": "step", 'linewidth': 1, "alpha": 1}, bins='auto', color='blue',
-             label='in single study: ' + str(len(single_sd)))
-sns.distplot(multiple_sd, ax=ax, hist=False, kde=True, rug=False, kde_kws={'linewidth': 2},
-             hist_kws={"histtype": "step", 'linewidth': 1, "alpha": 1}, bins='auto', color='red',
-             label='in multiple studies: ' + str(len(multiple_sd)))
-sns.distplot(al, ax=ax, hist=False, kde=True, rug=False, kde_kws={'linewidth': 2},
-             hist_kws={"histtype": "step", 'linewidth': 1, "alpha": 1}, bins='auto', color='green',
-             label='in ALMANAC, all cell lines: ' + str(len(al)))
-sns.distplot(on, ax=ax, hist=False, kde=True, rug=False, kde_kws={'linewidth': 2},
-             hist_kws={"histtype": "step", 'linewidth': 1, "alpha": 1}, bins='auto', color='violet',
-             label='in O\'NEIL, all cell lines: ' + str(len(on)))
-
-ax.legend(fontsize=20, loc='upper right')
-
-ax.tick_params(labelsize=20)
-
-ax.grid(b=True, which='major', color='k', linestyle='--', alpha=0.1)
-
-
-
-fig.suptitle('SD of CSS values of drugA & drugB & cell line combinations', fontsize=30)
-#ax1.set_title('cell line specific', fontsize=14)
-#ax2.set_title('found in multiple studies / study specific / not cell line specific', fontsize=14)
-
-ax.set_ylabel('Density', fontsize=24)
-ax.set_xlabel('SD', fontsize=24)
-#ax2.set_xlabel('SD', fontsize=12)
-
-fig.tight_layout()
-fig.subplots_adjust(top=0.88)
-now = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
-filename = 'case2_merged_' + now +'.pdf'
-
-#plt.show()
-# to_save = plt.gcf()
-# #to_save.savefig('sd of CSS values.png')
-fig.savefig(filename, dpi=600)
-plt.close(fig)
 
 
 
