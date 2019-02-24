@@ -7,9 +7,11 @@ from matplotlib import pyplot as plt
 import pickle
 import datetime
 from func import locing
+from matplotlib.ticker import FormatStrFormatter
+
 
 # sns.set(style="ticks")
-sns.set(rc={'figure.figsize': (15.7, 7.27)})
+sns.set(rc={'figure.figsize': (47.1, 21.81)})
 
 #with open('filter_input.pickle', 'wb') as f:
 #    pickle.dump(key_holder, f, pickle.HIGHEST_PROTOCOL)
@@ -106,41 +108,50 @@ sns.set_context('paper')
 
 fig, ax = plt.subplots(ncols=1)
 
-sns.distplot(single_sd_oneil, ax=ax, hist=False, kde=True, rug=False, kde_kws={'linewidth': 2},
+sns.distplot(single_sd_oneil, ax=ax, hist=False, kde=True, rug=False, kde_kws={'linewidth': 2, 'shade': True, 'color': '#B0C4DE'},
              hist_kws={"histtype": "step", 'linewidth': 1, "alpha": 1}, bins='auto', color='blue',
              label='within ONEIL, n = ' + str(len(single_sd_oneil)))
-sns.distplot(single_sd_almanac, ax=ax, hist=False, kde=True, rug=False, kde_kws={'linewidth': 2},
+sns.distplot(single_sd_almanac, ax=ax, hist=False, kde=True, rug=False, kde_kws={'linewidth': 2, 'shade': True, 'color': '#BC8F8F'},
              hist_kws={"histtype": "step", 'linewidth': 1, "alpha": 1}, bins='auto', color='red',
              label='within ALMANAC, n = ' + str(len(single_sd_almanac)))
-sns.distplot(multiple_sd, ax=ax, hist=False, kde=True, rug=False, kde_kws={'linewidth': 2},
+sns.distplot(multiple_sd, ax=ax, hist=False, kde=True, rug=False, kde_kws={'linewidth': 2, 'shade': True, 'color': "#8FBC8F"},
              hist_kws={"histtype": "step", 'linewidth': 1, "alpha": 1}, bins='auto', color='green',
              label='between studies, n = ' + str(len(multiple_sd)))
-sns.distplot(negative_sd, ax=ax, hist=False, kde=True, rug=False, kde_kws={'linewidth': 2},
+sns.distplot(negative_sd, ax=ax, hist=False, kde=True, rug=False, kde_kws={'linewidth': 2, 'shade': True, 'color': '#DDA0DD'},
              hist_kws={"histtype": "step", 'linewidth': 1, "alpha": 1}, bins='auto', color='violet',
              label='between studies (negative control), n = ' + str(len(negative_sd)))
 
 # adding mean values as vertical lines
-alpha = 0.3
+alpha = 0.9
 linestyle = ':'
-plt.axvline(np.mean(single_sd_oneil), color='blue', linestyle=linestyle, alpha=alpha)
-plt.axvline(np.mean(single_sd_almanac), color='red', linestyle=linestyle, alpha=alpha)
-plt.axvline(np.mean(multiple_sd), color='green', linestyle=linestyle, alpha=alpha)
-plt.axvline(np.mean(negative_sd), color='violet', linestyle=linestyle, alpha=alpha)
+linewidth=2
+plt.axvline(np.mean(single_sd_oneil), color='#B0C4DE', linestyle=linestyle, alpha=alpha, linewidth=linewidth)
+plt.axvline(np.mean(single_sd_almanac), color='#BC8F8F', linestyle=linestyle, alpha=alpha, linewidth=linewidth)
+plt.axvline(np.mean(multiple_sd), color='#8FBC8F', linestyle=linestyle, alpha=alpha, linewidth=linewidth)
+plt.axvline(np.mean(negative_sd), color='#DDA0DD', linestyle=linestyle, alpha=alpha, linewidth=linewidth)
+plt.text(3.6, 0.189,'4.25', {'color': 'blue', 'fontsize': 20})
+plt.text(10.83, 0.189,'12.02', {'color': '#8B0000', 'fontsize': 20})
+plt.text(14.2, 0.169,'15.44', {'color': 'green', 'fontsize': 20})
+plt.text(16.3, 0.189,'17.5', {'color': 'purple', 'fontsize': 20})
+
 
 
 ax.legend(fontsize=20, loc='upper right')
 
 ax.tick_params(labelsize=20)
+ax.yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
+ax.set_xlim(0,50)
+
 
 ax.grid(b=True, which='major', color='whitesmoke')
 # ax.grid(linestyle=':',alpha=0.1)
 
 
-fig.suptitle('Replicability within and between studies', fontsize=30)
+# fig.suptitle('Replicability within and between studies', fontsize=30)
 #ax1.set_title('cell line specific', fontsize=14)
 #ax2.set_title('found in multiple studies / study specific / not cell line specific', fontsize=14)
 
-ax.set_ylabel('Density', fontsize=24)
+ax.set_ylabel('Sample count (density) ', fontsize=24)
 ax.set_xlabel('SD', fontsize=24)
 #ax2.set_xlabel('SD', fontsize=12)
 
@@ -148,17 +159,17 @@ fig.tight_layout()
 fig.subplots_adjust(top=0.88)
 now = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
 #filename = 'case2_merged_' + now +'.eps'
-filename = 'case2_merged_' + now +'.png'
+filename = 'case2_merged_' + now +'.pdf'
 
 
 #plt.show()
 # to_save = plt.gcf()
 # #to_save.savefig('sd of CSS values.png')
-fig.savefig(filename, format='png')
+fig.savefig(filename, format='pdf')
 plt.close(fig)
 
 
-#%%
+   #%%
 
 
 #%% OLD VERSION. USE THE ONE KING MADE FOR SLAS

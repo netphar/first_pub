@@ -120,34 +120,34 @@ sns.violinplot(x="Tissue", y="value", ax=ax, hue='variable_LR_test', split=True,
                order=["brain", "breast", "colon", "hem_lymph", "kidney", "large_intest", "lung", "ovary", "prostate", "skin"])
 sns.despine(left=True)
 
-ax.set_title('RMSE of predicted CSS vs actual CSS. Linear Regression vs Naive on test fold. ', fontsize=18)
 
-ax.set_ylabel("RMSE", fontsize=12)
-ax.set_xlabel('Category', fontsize=12)
-ax.tick_params(labelsize=10)
+ax.set_ylabel("RMSE", fontsize=24)
+ax.set_xlabel('Category', fontsize=24)
+ax.tick_params(labelsize=20)
 ax.grid(b=True, which='major', color='k', linestyle='-', alpha=0.15)
 ax.xaxis.grid(False)
 
 
 
-blue_patch = mpatches.Patch(color='b', label='Naive CSS')
-yellow_patch = mpatches.Patch(color='y', label='Linear Regression CSS')
-white_patch = mpatches.Patch(color=None, fc="w", fill=False, edgecolor='none', linewidth=0, label='92 cell lines')
-white2_patch = mpatches.Patch(color=None, fc="w", fill=False, edgecolor='none', linewidth=0, label='CV_in=5, CV_out=10')
-white1_patch = mpatches.Patch(color=None, fc="w", fill=False, edgecolor='none', linewidth=0, label='NaiveCSS=DSS1+DSS2')
+blue_patch = mpatches.Patch(color='b', label='Additive model')
+yellow_patch = mpatches.Patch(color='y', label='Linear Regression')
+#white_patch = mpatches.Patch(color=None, fc="w", fill=False, edgecolor='none', linewidth=0, label='92 cell lines')
+#white2_patch = mpatches.Patch(color=None, fc="w", fill=False, edgecolor='none', linewidth=0, label='CV_in=5, CV_out=10')
+#white1_patch = mpatches.Patch(color=None, fc="w", fill=False, edgecolor='none', linewidth=0, label='NaiveCSS=DSS1+DSS2')
 
-ax.legend(handles=[blue_patch, yellow_patch, white_patch, white2_patch, white1_patch], loc='upper right')
+# ax.legend(handles=[blue_patch, yellow_patch, white_patch, white2_patch, white1_patch], loc='upper right')
+ax.legend(handles=[blue_patch, yellow_patch], bbox_to_anchor=(1, 1.1), fontsize=20)
 
 
 fig.tight_layout()
 fig.subplots_adjust(top=0.88)
 now = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
-filename = 'case3_' + now +'.png'
+filename = 'case3_' + now +'.pdf'
 
 #plt.show()
 # to_save = plt.gcf()
 # #to_save.savefig('sd of CSS values.png')
-fig.savefig(filename, dpi=600)
+fig.savefig(filename, format='pdf')
 plt.close(fig)
 
 # plt.show()

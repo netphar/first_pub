@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import datetime
 
 #sns.set(style="ticks")
-sns.set(rc={'figure.figsize': (15.7, 7.27)})
+sns.set(rc={'figure.figsize': (15.7, 8.27)})
 
 
 #%% first we need to load the files. Let's compare old drugs file wiht with the new drugs file
@@ -45,10 +45,10 @@ patches, _ = ax1.pie(sizes, startangle=90, radius=1.2, explode=explode, colors=s
 patches, labels, _ = zip(*sorted(zip(patches, labels, sizes),
                                      key=lambda x: x[2],
                                      reverse=True))
-ax1.legend(patches, labels, loc='center', fontsize=10)
-centre_circle = plt.Circle((0, 0), 0.70, fc='white')
+ax1.legend(patches, labels, loc='center', fontsize=18)
+centre_circle = plt.Circle((0, 0), 0.80, fc='white')
 ax1.add_patch(centre_circle)
-ax1.set_title('Drug types. Total count = 2285', fontsize=18)
+ax1.set_title('Drug types', fontsize=30)
 
 # cell types
 x1 = np.char.array(counts_tissue.axes[0].to_list())
@@ -87,20 +87,20 @@ for bar, newwidth, value in zip(ax2.patches, widthbars, labels1):
     #bar.set_x(centre-newwidth/2.)
     #bar.set_height(newwidth)
     y_loc = bar.get_y()+bar.get_height()/2.
-    ax2.annotate(value, xy=(bar.get_x()+1, y_loc), xytext=(0, 0), ha='center', va='center', fontsize=10, color='black',
+    ax2.annotate(value, xy=(bar.get_x()+2, y_loc), xytext=(0, 0), ha='center', va='center', fontsize=18, color='black',
                  rotation=0, textcoords='offset points')
 
-ax2.tick_params(labelsize=10)
+ax2.tick_params(labelsize=20)
 
 ax2.set_ylabel('')
-ax2.set_xlabel('Count')
-ax2.set_title('Cell line types. Total count = 93', fontsize=18)
+ax2.set_xlabel('Count', fontsize=20)
+ax2.set_title('Cell line classes', fontsize=30)
 
 fig1.tight_layout()
 now = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
-filename = 'case1_' + now +'.png'
+filename = 'case1_' + now +'.pdf'
 
-fig1.savefig(filename, dpi = 600)
+fig1.savefig(filename, type='pdf')
 plt.close(fig1)
 #plt.show()
 
