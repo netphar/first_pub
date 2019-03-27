@@ -1,10 +1,10 @@
 import pandas as pd
 
 
-def locing(df,a,b,c):
+def locing(df, a, b, c):
     """
-    
-    :param a: drug_row_id 
+
+    :param a: drug_row_id
     :param b: drug_col_id
     :param c: cell_line_id
     :param df: input dataframe

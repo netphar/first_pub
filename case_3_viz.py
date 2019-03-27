@@ -85,30 +85,30 @@ hold = pd.melt(hold, id_vars=["Cell_line", 'Tissue'],
 hold = pd.get_dummies(hold, columns=['variable'])
 
 #%%
-ax = sns.violinplot(x="Tissue", y="value", hue='variable_LR_test', split=True, inner="quartile",palette={0: "b", 1: "y"},
-               data=hold)
-sns.despine(left=True)
-ax.set_title('RMSE of predicted CSS vs actual CSS. LinR vs Naive on validation fold. All cell lines (except T98G). CV_out=5. CV_in=10. NaiveCSS = DSS1 + DSS2')
-
-plt.ylabel("RMSE")
-plt.xlabel('category')
-plt.show()
+# ax = sns.violinplot(x="Tissue", y="value", hue='variable_LR_test', split=True, inner="quartile",palette={0: "b", 1: "y"},
+#                orient='h',data=hold)
+# sns.despine(left=True)
+# ax.set_title('RMSE of predicted CSS vs actual CSS. LinR vs Naive on validation fold. All cell lines (except T98G). CV_out=5. CV_in=10. NaiveCSS = DSS1 + DSS2')
+#
+# plt.ylabel("RMSE")
+# plt.xlabel('category')
+# plt.show()
 
 #%%
-hold3 = hold.drop(['variable_LR_training',"variable_LR_validation",
+hold31 = hold.drop(['variable_LR_training',"variable_LR_validation",
                    'variable_Naive_training', 'variable_Naive_validation'], axis = 1)
-hold5 = hold.drop(['variable_LR_training',"variable_LR_test",
+hold51 = hold.drop(['variable_LR_training',"variable_LR_test",
                     'variable_Naive_training', 'variable_Naive_test'], axis=1)
-hold6 = hold.drop(['variable_LR_test',"variable_LR_validation",
+hold61 = hold.drop(['variable_LR_test',"variable_LR_validation",
                     'variable_Naive_test', 'variable_Naive_validation'], axis=1)
 
-hold4 = hold3.drop(hold3[(hold3.variable_LR_test == 0) & (hold3.variable_Naive_test == 0)].index)
-hold7 = hold5.drop(hold5[(hold5.variable_LR_validation == 0) & (hold5.variable_Naive_validation == 0)].index)
-hold8 = hold6.drop(hold6[(hold6.variable_LR_training == 0) & (hold6.variable_Naive_training == 0)].index)
+hold41 = hold31.drop(hold31[(hold31.variable_LR_test == 0) & (hold31.variable_Naive_test == 0)].index)
+hold71 = hold51.drop(hold51[(hold51.variable_LR_validation == 0) & (hold51.variable_Naive_validation == 0)].index)
+hold81 = hold61.drop(hold61[(hold61.variable_LR_training == 0) & (hold61.variable_Naive_training == 0)].index)
 
-hold4 = hold4.drop(['variable_Naive_test'], axis=1)
-hold7 = hold7.drop(['variable_Naive_validation'], axis=1)
-hold8 = hold8.drop(['variable_Naive_training'], axis=1)
+hold41 = hold41.drop(['variable_Naive_test'], axis=1)
+hold71 = hold71.drop(['variable_Naive_validation'], axis=1)
+hold81 = hold81.drop(['variable_Naive_training'], axis=1)
 
 #%%
 
@@ -116,7 +116,7 @@ fig, ax = plt.subplots(ncols=1)
 
 sns.violinplot(x="Tissue", y="value", ax=ax, hue='variable_LR_test', split=True, inner="quartile",
                     palette={0: "b", 1: "y"},
-                    data=hold4, scale='count',
+                    data=hold41, scale='count',
                order=["brain", "breast", "colon", "hem_lymph", "kidney", "large_intest", "lung", "ovary", "prostate", "skin"])
 sns.despine(left=True)
 
@@ -144,9 +144,10 @@ fig.subplots_adjust(top=0.88)
 now = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
 filename = 'case3_' + now +'.pdf'
 
-#plt.show()
+plt.show()
 # to_save = plt.gcf()
 # #to_save.savefig('sd of CSS values.png')
+#%%
 fig.savefig(filename, format='pdf')
 plt.close(fig)
 

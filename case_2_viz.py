@@ -6,7 +6,7 @@ import seaborn as sns
 from matplotlib import pyplot as plt
 import pickle
 import datetime
-from func import locing
+# from func import locing
 from matplotlib.ticker import FormatStrFormatter
 
 
