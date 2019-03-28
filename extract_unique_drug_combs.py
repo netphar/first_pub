@@ -19,15 +19,22 @@ for key, group in grouped:
 # so i m iterating over the list and then reversing the order of the elements and testing for presence of that
 # if present add to new replicates list
 replicates = []
+temp = []
 for i in holder:
     a = i[0]
     b = i[1]
     c = (b,a)
-    if c in holder:
+    temp.append(c)
+    if (c in holder) & (i not in temp):
         replicates.append(c)
 #%%
 # removing the list with list comprehension
 # creating a dataframe and naming the columns
+'''
+('ANASTROZOLE', '34793-34-5') in drug_combs
+Out[9]: False
+('34793-34-5','ANASTROZOLE') in drug_combs
+'''
 drug_combs = [x for x in holder if x not in replicates]
 out = pd.DataFrame(drug_combs)
 out.columns = ['DrugA','DrugB']
