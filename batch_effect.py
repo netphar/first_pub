@@ -12,18 +12,28 @@ file = pd.read_csv('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Al
 #%% pick only those that contain NA
 noNA = file.loc[~file.isnull().any(axis=1)]
 withNA = file.loc[file.isnull().any(axis=1)]
-#%%
+#%% testing if any of the combos are tested on separate plates / test centers
+
 noNA_grouped = noNA.groupby(['NSC1','NSC2', 'CELLNAME'])
 
+holder = []
 count = 0
 for i,v in noNA_grouped:  # get number of unique combos where
     if (len(v['PLATE'].unique()) > 1) | (len(v['SCREENER'].unique()) > 1) | (len(v['STUDY'].unique()) > 1):
         count += 1
+        holder.append(i)
 #%% this step is necessary, as pandas ignores rows with na's
 # file.fillna(-999, inplace=True)  # this fails, since there are categorical columns present. To make it work as is, it is necessary to add the missing value to categories
-file.fillna(pd.Series(-9999, index=file.select_dtypes(exclude='category').columns), inplace=True)
+withNA.fillna(pd.Series(-9999, index=file.select_dtypes(exclude='category').columns), inplace=True)
 
-grouped = file.groupby(['NSC1','NSC2','CELLNAME'])
+withNA_grouped = withNA.groupby(['NSC1','NSC2','CELLNAME'])
+#%%
+holder1 = []
+count1 = 0
+for i,v in withNA_grouped:  # get number of unique combos where
+    if (len(v['PLATE'].unique()) > 1) | (len(v['SCREENER'].unique()) > 1) | (len(v['STUDY'].unique()) > 1):
+        count1 += 1
+        holder1.append(i)
 #%%
 for i,v in grouped:
     if len(v['PLATE'].unique()) >1:
