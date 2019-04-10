@@ -84,26 +84,73 @@ for i,v in grouped:
 #%%
 
 test = file1.copy()
+# test = file1.loc[(file1.PLATE == bp[0]) | (file1.PLATE == gp[0]) |
+#                  (file1.PLATE == gp[34]) | (file1.PLATE == gp[150]) |
+#                  (file1.PLATE == gp[45]) | (file1.PLATE == gp[0]) |
+#                  (file1.PLATE == bp[2]) | (file1.PLATE == bp[75]) |
+#                  (file1.PLATE == gp[45]) | (file1.PLATE == bp[888]) |
+#                  (file1.PLATE == gp[1000])]
+test['mean noTZ'] = np.nan
+test['good plate'] = np.nan
+
+#%%
+def sorter(x):
+    # a,b,c,d,e = x['NSC1'].unique().astype(int).item(), x['NSC2'].unique().astype(int).item(), x['CELLNAME'].unique().astype(str).item(), x['CONC1'].unique().astype(float).item(), x['CONC2'].unique().astype(str).item()
+    a = np.unique(x['NSC1'].to_numpy()).item()
+    b = np.unique(x['NSC2'].to_numpy()).item()
+    c = x['CELLNAME'].unique().item()
+    d = x['CONC1'].unique().item()
+    e = x['CONC2'].unique().item()
+    if b == -9999:
+        #temp = np.mean(file1.loc[ (file1.NSC1 == a) & (file1.NSC2 == b) & (file1.CELLNAME == c) & (file1.CONC1 == d) & (file1.CONC2 == e)]['PERCENTGROWTHNOTZ'])
+        data = {0: hh.get((a,b,c,d,e), -9999) }
+        return pd.DataFrame(index=x.index, data = data)
+    else:
+        data = {0: np.mean(x['PERCENTGROWTHNOTZ'])}
+        return pd.DataFrame(index=x.index, data=data)
+    # else:
+    #     return np.mean(x['PERCENTGROWTHNOTZ'])
+
+
+    # if x.NSC2 == -9999:
+    #     x.PERCENTGROWTHNOTZ = -1
+    #     return x
+    # else:
+    #     x.PERCENTGROWTHNOTZ = 1
+    #     return x
+
 def good(x):  # for good plates we simply get means from the plates
     return x.groupby(['NSC1', 'NSC2', 'CELLNAME', 'CONC1', 'CONC2'])['PERCENTGROWTHNOTZ'].transform(np.mean)
 
 def bad(x):  # for bad plates we need to get averages of all the screens for that combination of drugs / cell lines / doses
-    if x.NSC2 == -9999:
-        x['mean noTZ'] = hh.get((x.NSC1, x.NSC2, x.CELLNAME, x.CONC1,x.CONC2), -9999)
-        # x['mean noTZ'] = np.mean(file1.loc[(file1.NSC1 == x.NSC1) &
-        #                                    (file1.NSC2 == -9999) &
-        #                                    (file1.CELLNAME == x.CELLNAME) &
-        #                                    (file1.CONC1 == x.CONC1) &
-        #                                    (file1.CONC2 == -9999)]['PERCENTGROWTHNOTZ'])
-    else:
-        # temp = file1.loc[file1.PLATE == i]
-        # x['mean noTZ'] = np.mean(v.loc[(v.NSC1 == x.NSC1) &
-        #                                    (v.NSC2 == x.NSC2) &
-        #                                    (v.CELLNAME == x.CELLNAME) &
-        #                                    (v.CONC1 == x.CONC1) &
-        #                                    (v.CONC2 == x.CONC2)]['PERCENTGROWTHNOTZ'])
-        pass
-    return x
+    return x.groupby(['NSC1', 'NSC2', 'CELLNAME', 'CONC1', 'CONC2']).apply(sorter)
+    # for i,v in temp:
+    #     hh.get[]
+
+    # return x.groupby(['NSC1', 'NSC2', 'CELLNAME', 'CONC1', 'CONC2']).transform(sorter)
+    #
+    # if x.NSC2 == -9999:
+    #     ap = file1.loc[(file1.NSC1 == x.NSC1) &
+    #                    (file1.NSC2 == x.NSC2) &
+    #                    (file1.CELLNAME == x.CELLNAME) &
+    #                    (file1.CONC1 == x.CONC1) &
+    #                    (file1.CONC2 == x.CONC2)]['PERCENTGROWTHNOTZ']
+    #     x['mean noTZ'] = hh.get((x.NSC1, x.NSC2, x.CELLNAME, x.CONC1,x.CONC2), -9999)
+    #
+    #     # x['mean noTZ'] = np.mean(file1.loc[(file1.NSC1 == x.NSC1) &
+    #     #                                    (file1.NSC2 == -9999) &
+    #     #                                    (file1.CELLNAME == x.CELLNAME) &
+    #     #                                    (file1.CONC1 == x.CONC1) &
+    #     #                                    (file1.CONC2 == -9999)]['PERCENTGROWTHNOTZ'])
+    # else:
+    #     # temp = file1.loc[file1.PLATE == i]
+    #     # x['mean noTZ'] = np.mean(v.loc[(v.NSC1 == x.NSC1) &
+    #     #                                    (v.NSC2 == x.NSC2) &
+    #     #                                    (v.CELLNAME == x.CELLNAME) &
+    #     #                                    (v.CONC1 == x.CONC1) &
+    #     #                                    (v.CONC2 == x.CONC2)]['PERCENTGROWTHNOTZ'])
+    #     return x.groupby(['NSC1', 'NSC2', 'CELLNAME', 'CONC1', 'CONC2'])['PERCENTGROWTHNOTZ'].transform(np.mean)
+    # # return x
 
 
 
@@ -120,18 +167,30 @@ def bad(x):  # for bad plates we need to get averages of all the screens for tha
 #     return di
 
 
-test['mean noTZ'] = np.nan
 t = test.groupby('PLATE')
-
 something = pd.DataFrame()
+something1 = pd.DataFrame()
 for (i,v) in t:
     if i in gp:
         temp = good(v)
-        v['mean noTZ'] = temp
+        something = pd.concat([something, temp])
+ #       v['mean noTZ'] = temp
 #        test.update(v) how about we do a bulk update. Here we just concat to create a longass pd.Series
+
     elif i in bp:
-        v = v.apply(bad, axis=1)
-        test.update(v)
+        temp = bad(v)
+        something1 = pd.concat([something1, temp])
+#        test.update(v)
+something.rename(columns={0:'mean noTZ'},inplace=True)
+something1.rename(columns={0:'mean noTZ'},inplace=True)
+
+test.update(something)
+test.update(something1)
+
+test['good plate'].loc[test.PLATE.isin(gp)] = 1
+test['good plate'].loc[test.PLATE.isin(bp)] = 0
+#
+
 #########################################
 
 #%%
