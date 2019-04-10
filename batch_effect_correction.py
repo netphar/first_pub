@@ -5,6 +5,8 @@ from matplotlib import pyplot as plt
 from mlxtend.plotting import category_scatter
 from collections import defaultdict
 import seaborn as sns
+from collections import Counter
+
 
 #%%
 '''
@@ -73,14 +75,14 @@ counter = 0
 hh = {}
 grouped = file1.groupby(['NSC1', 'NSC2', 'CELLNAME', 'CONC1', 'CONC2'])
 
-#%%
 for i,v in grouped:
     print(i)
     if i[1] == -9999:
         print(i)
         hh[i] = np.mean(v['PERCENTGROWTHNOTZ'])
 
-
+del grouped
+del file1_grouped_plate
 #%%
 
 test = file1.copy()
@@ -95,6 +97,10 @@ test['good plate'] = np.nan
 
 #%%
 def sorter(x):
+    '''
+    :param x: dataframe object from groupby operation on the full file with PLATE as groupby var
+    :return: dataframe with one column (labeled 0), contains values either from hh dict (for single drugs screened in bad plates or calculates mean PERCENTGROWTHNOTZ of the current dataframe
+    '''
     # a,b,c,d,e = x['NSC1'].unique().astype(int).item(), x['NSC2'].unique().astype(int).item(), x['CELLNAME'].unique().astype(str).item(), x['CONC1'].unique().astype(float).item(), x['CONC2'].unique().astype(str).item()
     a = np.unique(x['NSC1'].to_numpy()).item()
     b = np.unique(x['NSC2'].to_numpy()).item()
@@ -119,10 +125,21 @@ def sorter(x):
     #     x.PERCENTGROWTHNOTZ = 1
     #     return x
 
-def good(x):  # for good plates we simply get means from the plates
+def good(x):
+    '''
+    for good plates we simply get means from the plates
+    :param x: dataframe object from groupby operation on the full file with PLATE as groupby var
+    :return: transform takes in columns as series, and returns series of the same length / index with the function applied
+    '''
     return x.groupby(['NSC1', 'NSC2', 'CELLNAME', 'CONC1', 'CONC2'])['PERCENTGROWTHNOTZ'].transform(np.mean)
 
-def bad(x):  # for bad plates we need to get averages of all the screens for that combination of drugs / cell lines / doses
+def bad(x):
+    '''
+    for bad plates we need to get averages of all the screens for that combination of drugs / cell lines / doses
+    we are using sorter() and applying it group-wise
+    :param x: dataframe object from groupby operation on the full file with PLATE as groupby var
+    :return:
+    '''
     return x.groupby(['NSC1', 'NSC2', 'CELLNAME', 'CONC1', 'CONC2']).apply(sorter)
     # for i,v in temp:
     #     hh.get[]
@@ -171,6 +188,7 @@ t = test.groupby('PLATE')
 something = pd.DataFrame()
 something1 = pd.DataFrame()
 for (i,v) in t:
+    print(i)
     if i in gp:
         temp = good(v)
         something = pd.concat([something, temp])
@@ -189,10 +207,93 @@ test.update(something1)
 
 test['good plate'].loc[test.PLATE.isin(gp)] = 1
 test['good plate'].loc[test.PLATE.isin(bp)] = 0
-#
 
+test.to_csv('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/ComboDrugGrowth_Nov2017_updated_noTZ.csv', sep=',')
+#%%
+dtypes = {'SCREENER': 'object', 'STUDY': 'object', 'TESTDATE': 'str', 'PLATE': 'object', 'NSC1': 'Int64', 'NSC2': 'Int64'}
+test = pd.read_csv('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/ComboDrugGrowth_Nov2017_updated_noTZ.csv', sep=',', dtype = dtypes)
+test.drop(columns=['Unnamed: 0'], inplace=True)
 #########################################
+# end of working script for calculating averages
+#########################################
+#%%
+# this part makes is identical to the r file
+def exchanger(x):  # returns key with lowest value (ie which drug is least prevalent in the column)
+    d = dict(Counter(x))
+    return min(d, key=lambda k: d[k])
 
+def filler(x):  # returns key with highest value (ie which drug is more prevalent in the column)
+    d = dict(Counter(x))
+    return max(d, key=lambda k: d[k])
+
+to_keep = ['PLATE', 'NSC1', 'CONC1','NSC2', 'CONC2','PERCENTGROWTHNOTZ','VALID','CELLNAME', 'mean noTZ', 'good plate']
+test = test[to_keep]
+
+
+x,y,z = 3088,752,'NCI/ADR-RES'
+x,y,z = 763371, 757441, 'NCI-H23'
+def putter(x,y,z, counter):
+    '''
+    :param x: NSC2 (drug_row)
+    :param y: NSC1 (drug_col)
+    :param z: cell line
+    :return: cleaned and prepared dataframe. Without unique blockID though
+    '''
+    a = test.loc[(test.NSC2 == x) & (test.NSC1 == y) & (test.CELLNAME == z)]  # nsc2 = row, nsc1 = col october[((october$drug_row == 3088) & (october$drug_col == 752) & (october$cell_line_name == 'NCI/ADR-RES')),]
+
+    c1 = a.CONC1.drop_duplicates()
+    c2 = a.CONC2.drop_duplicates()
+
+    if a['good plate'].unique() == 1:
+        single_nsc1 = test.loc[(test.PLATE == a.PLATE.unique().item()) & (test.NSC1 == y) & (test.NSC2 == -9999)]
+        single_nsc2 = test.loc[(test.PLATE == a.PLATE.unique().item()) & (test.NSC1 == x) & (test.NSC2 == -9999)]
+    else:
+        single_nsc1 = test.loc[(test.CELLNAME == z) & (test.NSC1 == y) & (test.NSC2 == -9999) & (test.CONC1.isin(c1)) & (test.CONC2 == -9999) & (test['good plate'] == 0)]
+        single_nsc2 = test.loc[(test.CELLNAME == z) & (test.NSC1 == x) & (test.NSC2 == -9999) & (test.CONC1.isin(c2)) & (test.CONC2 == -9999) & (test['good plate'] == 0)]
+        single_nsc1.drop_duplicates(subset=['mean noTZ'], inplace=True)
+        single_nsc2.drop_duplicates(subset=['mean noTZ'], inplace=True)
+
+
+    sample = pd.concat([a,single_nsc1,single_nsc2])
+    sample['CONC2'].loc[sample['CONC2'] == -9999] = 0
+    sample.loc[:,['CONC1','CONC2']] = sample.loc[:,['CONC1','CONC2']]*1e6  # correcting to uM
+
+
+
+    ex = exchanger(sample.NSC1)
+    sample.loc[sample['NSC1'] == ex, ['NSC1', 'NSC2', 'CONC1', 'CONC2']] = sample.loc[sample['NSC1'] == ex, ['NSC2', 'NSC1', 'CONC2', 'CONC1']].values
+    sample['NSC1'] = filler(sample['NSC1'])
+    sample['NSC2'] = filler(sample['NSC2'])
+    sample = sample.append(sample.iloc[-1,:], ignore_index=True)
+    sample.loc[sample.index[-1], ['CONC1','CONC2', 'PERCENTGROWTHNOTZ', 'mean noTZ']] = pd.Series({'CONC1':0,'CONC2':0, 'PERCENTGROWTHNOTZ':100, 'mean noTZ':100})
+    sample['blockID'] = str(counter)+':'+ sample.CELLNAME.unique().item()
+    return sample
+rr = putter(x,y,z,0)
+#d1 = test.loc[(test.NSC1 == 752) & (test.NSC2 == -9999) & (test.CELLNAME == 'NCI/ADR-RES') & (test.CONC1.isin(c1)) & (test.CONC2 == -9999)]
+#d2 = test.loc[(test.NSC1 == 3088) & (test.NSC2 == -9999) & (test.CELLNAME == 'NCI/ADR-RES') & (test.CONC1.isin(c2)) & (test.CONC2 == -9999)]
+#%%
+holder = {}
+grouped = test.groupby(['NSC1','NSC2', 'CELLNAME'])
+counter = 0
+for i,v in grouped:
+    x = i[1]
+    y = i[0]
+    z = i[2]
+    if (x != -9999) &  (y != -9999):
+        counter += 1
+        holder[i] = putter(x,y,z, counter)
+        if counter == 10:
+            break
+    else:
+        pass
+#%% concatting
+from functools import partial, reduce
+final = pd.DataFrame()
+for i,v in holder.items():
+    final = pd.concat([final,v])
+#######################
+# end of script for creating correct blocks
+#######################
 #%%
 file = pd.read_csv('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/ComboDrugGrowth_Nov2017.csv', sep=',',
                    dtype=dtypes) #, parse_dates=parse_dates)
