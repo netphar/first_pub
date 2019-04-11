@@ -6,7 +6,7 @@ from mlxtend.plotting import category_scatter
 from collections import defaultdict
 import seaborn as sns
 from collections import Counter
-import numba
+from tqdm import tqdm
 
 #%%
 '''
@@ -247,7 +247,81 @@ inv_plates = {v: k for k, v in plates.items()}
 test['CELLNAME'] = test['CELLNAME'].map(inv_cellnames)
 test['PLATE'] = test['PLATE'].map(inv_plates)
 
+#%%
+safe = test.copy()
+# test = safe.copy()
+tqdm.pandas(desc="my bar!")
 
+def func(m):
+    i = m.name
+    x,y,z = i[1],i[0],i[2]
+    if (x != -9999) &  (y != -9999):
+        a = m  # nsc2 = row, nsc1 = col october[((october$drug_row == 3088) & (october$drug_col == 752) & (october$cell_line_name == 'NCI/ADR-RES')),]
+
+        c1 = a.CONC1.drop_duplicates()
+        c2 = a.CONC2.drop_duplicates()
+
+        if a['good plate'].unique() == 1:
+            it = a.PLATE.unique().item()
+            single_nsc1 = test.loc[(test.PLATE == it) & (test.NSC1 == y) & (test.NSC2 == -9999)]
+            single_nsc2 = test.loc[(test.PLATE == it) & (test.NSC1 == x) & (test.NSC2 == -9999)]
+        else:
+            single_nsc1 = test.loc[
+                (test.CELLNAME == z) & (test.NSC1 == y) & (test.NSC2 == -9999) & (test.CONC1.isin(c1)) & (
+                            test['good plate'] == 0)].drop_duplicates(subset=['mean noTZ'])
+            single_nsc2 = test.loc[
+                (test.CELLNAME == z) & (test.NSC1 == x) & (test.NSC2 == -9999) & (test.CONC1.isin(c2)) & (
+                            test['good plate'] == 0)].drop_duplicates(subset=['mean noTZ'])
+        # single_nsc1.
+        # single_nsc2.
+
+        sample = pd.concat([a, single_nsc1, single_nsc2])
+        sample['CONC2'].loc[sample['CONC2'] == -9999] = 0
+        sample.loc[:, ['CONC1', 'CONC2']] = sample.loc[:, ['CONC1', 'CONC2']] * 1e6  # correcting to uM
+
+        ex = exchanger1(sample.NSC1)
+        sample.loc[sample['NSC1'] == ex, ['NSC1', 'NSC2', 'CONC1', 'CONC2']] = sample.loc[
+            sample['NSC1'] == ex, ['NSC2', 'NSC1', 'CONC2', 'CONC1']].values
+        sample['NSC1'] = filler1(sample['NSC1'])
+        sample['NSC2'] = filler1(sample['NSC2'])
+        sample = sample.append(sample.iloc[-1, :], ignore_index=True)
+        sample.loc[sample.index[-1], ['CONC1', 'CONC2', 'PERCENTGROWTHNOTZ', 'mean noTZ']] = pd.Series(
+            {'CONC1': 0, 'CONC2': 0, 'PERCENTGROWTHNOTZ': 100, 'mean noTZ': 100})
+ #       sample['blockID'] = str(counter) + ':' + cellnames[sample.CELLNAME.unique().item()] implement counter
+        return sample
+
+
+
+
+done = test.groupby(['NSC1','NSC2', 'CELLNAME']).progress_apply(func)
+
+
+counter = 0
+blo = {}
+for i,v in done.groupby(['NSC1','NSC2', 'CELLNAME']):
+    counter +=1
+    blo[i] = counter  # these are indices groups in practice
+
+
+#%% for  testing func above
+counter = 0
+groups = []
+for i,v in test.groupby(['NSC1','NSC2', 'CELLNAME']):
+    x,y,z = i[1],i[0],i[2]
+    if (x != -9999) &  (y != -9999):
+        groups.append(i)
+        print(i)
+        counter +=1
+        if counter == 2:
+            break
+
+hah = test.loc[(test.NSC1 == 740) & (test.NSC2 == 752)& (test.CELLNAME.isin([0,1]))]
+
+
+
+
+# i think above is the fastest working function i was able to make
+####################
 #%%
 final = []
 out = pd.DataFrame()
@@ -377,10 +451,77 @@ for i,v in grouped:
 from functools import partial, reduce
 
 #%%
-# def func(m):
-#     i = m.name
-#     x,y,z = i[1],i[0],i[2]
-#     if (x != -9999) &  (y != -9999):
+safe = test.copy()
+# test = safe.copy()
+tqdm.pandas(desc="my bar!")
+
+def func(m):
+    i = m.name
+    x,y,z = i[1],i[0],i[2]
+    if (x != -9999) &  (y != -9999):
+        a = m  # nsc2 = row, nsc1 = col october[((october$drug_row == 3088) & (october$drug_col == 752) & (october$cell_line_name == 'NCI/ADR-RES')),]
+
+        c1 = a.CONC1.drop_duplicates()
+        c2 = a.CONC2.drop_duplicates()
+
+        if a['good plate'].unique() == 1:
+            it = a.PLATE.unique().item()
+            single_nsc1 = test.loc[(test.PLATE == it) & (test.NSC1 == y) & (test.NSC2 == -9999)]
+            single_nsc2 = test.loc[(test.PLATE == it) & (test.NSC1 == x) & (test.NSC2 == -9999)]
+        else:
+            single_nsc1 = test.loc[
+                (test.CELLNAME == z) & (test.NSC1 == y) & (test.NSC2 == -9999) & (test.CONC1.isin(c1)) & (
+                            test['good plate'] == 0)].drop_duplicates(subset=['mean noTZ'])
+            single_nsc2 = test.loc[
+                (test.CELLNAME == z) & (test.NSC1 == x) & (test.NSC2 == -9999) & (test.CONC1.isin(c2)) & (
+                            test['good plate'] == 0)].drop_duplicates(subset=['mean noTZ'])
+        # single_nsc1.
+        # single_nsc2.
+
+        sample = pd.concat([a, single_nsc1, single_nsc2])
+        sample['CONC2'].loc[sample['CONC2'] == -9999] = 0
+        sample.loc[:, ['CONC1', 'CONC2']] = sample.loc[:, ['CONC1', 'CONC2']] * 1e6  # correcting to uM
+
+        ex = exchanger1(sample.NSC1)
+        sample.loc[sample['NSC1'] == ex, ['NSC1', 'NSC2', 'CONC1', 'CONC2']] = sample.loc[
+            sample['NSC1'] == ex, ['NSC2', 'NSC1', 'CONC2', 'CONC1']].values
+        sample['NSC1'] = filler1(sample['NSC1'])
+        sample['NSC2'] = filler1(sample['NSC2'])
+        sample = sample.append(sample.iloc[-1, :], ignore_index=True)
+        sample.loc[sample.index[-1], ['CONC1', 'CONC2', 'PERCENTGROWTHNOTZ', 'mean noTZ']] = pd.Series(
+            {'CONC1': 0, 'CONC2': 0, 'PERCENTGROWTHNOTZ': 100, 'mean noTZ': 100})
+ #       sample['blockID'] = str(counter) + ':' + cellnames[sample.CELLNAME.unique().item()] implement counter
+        return sample
+
+
+
+
+done = test.groupby(['NSC1','NSC2', 'CELLNAME']).progress_apply(func)
+
+
+counter = 0
+blo = {}
+for i,v in done.groupby(['NSC1','NSC2', 'CELLNAME']):
+    counter +=1
+    blo[i] = counter  # these are indices groups in practice
+
+
+#%% for  testing func above
+counter = 0
+groups = []
+for i,v in test.groupby(['NSC1','NSC2', 'CELLNAME']):
+    x,y,z = i[1],i[0],i[2]
+    if (x != -9999) &  (y != -9999):
+        groups.append(i)
+        print(i)
+        counter +=1
+        if counter == 2:
+            break
+
+hah = test.loc[(test.NSC1 == 740) & (test.NSC2 == 752)& (test.CELLNAME.isin([0,1]))]
+
+#%%
+
 
 #### let's construct a dict from unique values in columns
 cellnames = dict(enumerate(test.CELLNAME.unique()))
