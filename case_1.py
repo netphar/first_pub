@@ -9,7 +9,9 @@ import matplotlib.pyplot as plt
 import datetime
 
 #sns.set(style="ticks")
-sns.set(rc={'figure.figsize': (15.7, 8.27)})
+sns.set(rc={'figure.figsize': (21.7, 9.77)})
+sns.set_style("whitegrid")
+sns.set_context('paper')
 
 
 #%% first we need to load the files. Let's compare old drugs file wiht with the new drugs file
@@ -30,7 +32,7 @@ counts_tissue = tissue['tissue_name'].value_counts()
 #%% THIS IS A WORKING ONE
 fig1, (ax1, ax2) = plt.subplots(ncols=2)
 sns.set_style("whitegrid")
-sns.set_context('paper')
+#sns.set_context('paper')
 
 # drug types
 x = np.char.array(counts.axes[0].to_list())
@@ -48,7 +50,7 @@ patches, labels, _ = zip(*sorted(zip(patches, labels, sizes),
 ax1.legend(patches, labels, loc='center', fontsize=18)
 centre_circle = plt.Circle((0, 0), 0.80, fc='white')
 ax1.add_patch(centre_circle)
-ax1.set_title('Drug types', fontsize=30)
+ax1.set_title('Drug types', fontsize=36)
 
 # cell types
 x1 = np.char.array(counts_tissue.axes[0].to_list())
@@ -93,14 +95,18 @@ for bar, newwidth, value in zip(ax2.patches, widthbars, labels1):
 ax2.tick_params(labelsize=20)
 
 ax2.set_ylabel('')
-ax2.set_xlabel('Count', fontsize=20)
-ax2.set_title('Cell line classes', fontsize=30)
+ax2.set_xlabel('Count', fontsize=30)
+ax2.set_title('Cell line classes', fontsize=36)
 
-fig1.tight_layout()
+#fig1.tight_layout()
+fig1.subplots_adjust(top=0.88)
+
 now = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
 filename = 'case1_' + now +'.pdf'
 
-fig1.savefig(filename, type='pdf')
+#fig1.savefig(filename, type='pdf')
+fig1.savefig(filename, format="svg")
+plt.show()
 plt.close(fig1)
 #plt.show()
 

@@ -104,7 +104,7 @@ with tqdm(total=timer) as pbar:
 #     pickle.dump(key_holder, f, pickle.HIGHEST_PROTOCOL)
 
 #%%
-with open('/Users/zagidull/PycharmProjects/test_scientific/filter_input.pickle', 'rb') as f:
+with open('/Users/zagidull/PycharmProjects/DrugComb pub/filter_input.pickle', 'rb') as f:
     x = pickle.load(f)
 
 #%%
@@ -228,3 +228,21 @@ for i,v in mult.items():
 from  scipy.stats import wilcoxon
 print(wilcoxon(holder,holder_actual))
 
+#%%
+input_all = pd.read_csv('/Users/zagidull/Documents/fimm_files/chemical_similarity/classifier/summary_css_dss_ic50_synergy_smiles_study.csv', sep = ';')
+
+
+input_all['sorted_row'] = [sorted([a,b,c]) for a,b,c in zip(input_all.drug_row_id, input_all.drug_col_id, input_all.cell_line_id)]
+a = input_all.copy()
+a = a.loc[a.study == 'ALMANAC']
+a['sorted_row'] = a['sorted_row'].astype(str)
+a.drop_duplicates(subset=['sorted_row'], inplace=True)
+
+
+input_all['check_string'] = input_all.apply(lambda row: ''.join(sorted([row['drug_row_id'].__str__(), row['drug_col_id'].__str__() ])), axis=1)
+input_all['check_string'] = input_all.apply(lambda row: ''.join(sorted([row['check_string'].__str__(), row['cell_line_id'].__str__() ])), axis=1)
+
+
+
+c
+a.drop_duplicates('check_string', inplace=True)

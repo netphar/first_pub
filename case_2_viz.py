@@ -16,7 +16,7 @@ sns.set(rc={'figure.figsize': (47.1, 21.81)})
 #with open('filter_input.pickle', 'wb') as f:
 #    pickle.dump(key_holder, f, pickle.HIGHEST_PROTOCOL)
 
-with open('/Users/zagidull/PycharmProjects/test_scientific/filter_input.pickle', 'rb') as f:
+with open('/Users/zagidull/PycharmProjects/drugcomb pub/filter_input.pickle', 'rb') as f:
     data = pickle.load(f)
 input_all = pd.read_csv('/Users/zagidull/Documents/fimm_files/chemical_similarity/classifier/summary_css_dss_ic50_synergy_smiles_study.csv', sep = ';')
 
@@ -159,13 +159,15 @@ fig.tight_layout()
 fig.subplots_adjust(top=0.88)
 now = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
 #filename = 'case2_merged_' + now +'.eps'
-filename = 'case2_merged_' + now +'.pdf'
+filename = 'case2_merged_' + now +'.svg'
 
 
 #plt.show()
 # to_save = plt.gcf()
 # #to_save.savefig('sd of CSS values.png')
 fig.savefig(filename, format='pdf')
+fig.savefig(filename, format='svg')
+
 plt.close(fig)
 
 

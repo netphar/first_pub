@@ -142,13 +142,13 @@ ax.legend(handles=[blue_patch, yellow_patch], bbox_to_anchor=(1, 1.1), fontsize=
 fig.tight_layout()
 fig.subplots_adjust(top=0.88)
 now = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
-filename = 'case3_' + now +'.pdf'
+filename = 'case3_' + now +'.svg'
 
 plt.show()
 # to_save = plt.gcf()
 # #to_save.savefig('sd of CSS values.png')
 #%%
-fig.savefig(filename, format='pdf')
+fig.savefig(filename, format='svg')
 plt.close(fig)
 
 # plt.show()

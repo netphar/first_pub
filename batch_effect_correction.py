@@ -1,4 +1,6 @@
 #%%
+import datetime
+
 import pandas as pd
 import numpy as np
 from matplotlib import pyplot as plt
@@ -212,6 +214,10 @@ test.to_csv('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/C
 #########################################
 # end of working script for calculating averages
 #########################################
+
+#########################################
+# for reshaping and graphing part of the script
+#########################################
 #%%
 dtypes = {'SCREENER': 'object', 'STUDY': 'object', 'TESTDATE': 'str', 'PLATE': 'object', 'NSC1': 'Int64', 'NSC2': 'Int64', 'CELLNAME' : 'object'}
 test = pd.read_csv('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/ComboDrugGrowth_Nov2017_updated_noTZ.csv', sep=',', dtype = dtypes, low_memory=False)
@@ -294,14 +300,56 @@ def func(m):
 
 
 done = test.groupby(['NSC1','NSC2', 'CELLNAME']).progress_apply(func)
+done.to_csv('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/ComboDrugGrowth_Nov2017_reshaped.csv', sep=',', index=False)  # save for R loading
 
 
+done = done.reset_index(drop=True)  # inded used to be something weird, now it is numbers
+
+
+smth = done.groupby(['NSC1','NSC2', 'CELLNAME'])
 counter = 0
-blo = {}
-for i,v in done.groupby(['NSC1','NSC2', 'CELLNAME']):
+blo = []
+for i,v in smth:
     counter +=1
-    blo[i] = counter  # these are indices groups in practice
+    s = np.full((len(v), ), counter)
+    blo.append(s)  # these are indices groups in practice
+tre = np.concatenate(blo)
+done['blockID'] = tre
 
+# let's substitute cellnames and plates
+done['CELLNAME'] = done['CELLNAME'].map(cellnames)
+done['PLATE'] = done['PLATE'].map(plates)
+
+done['sep'] = np.full((len(done), ), ':')
+
+done['new'] = done['blockID'].astype('str') + done['sep'] + done['CELLNAME']
+
+done.drop(columns=['blockID', 'sep'], inplace=True)
+
+
+# renaming to fit R's required format
+done.rename(columns={'new' : 'blockID', 'mean noTZ': 'response','NSC2':'drug_row', 'CONC2':'conc_r', 'NSC1':'drug_col', 'CONC1':'conc_c','CELLNAME':'cell_line_name'},inplace=True)
+done.drop(columns=['PERCENTGROWTHNOTZ', 'PLATE'], inplace=True)
+done['conc_r_unit'] = done['conc_c_unit'] = 'uM'
+done.drop(columns=['VALID'], inplace=True)
+done.to_csv('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/ComboDrugGrowth_Nov2017_final1.csv', sep=',', index=False)  # save for R loading
+
+
+def z(x):
+    val = x.index.values[0].astype('str') + ':' + x['cell_line_name'].unique().item()
+    x['block_id'] = val
+    return x
+
+tqdm.pandas(desc="my bar!")
+
+hahah = done.groupby(['drug_row', 'drug_col', 'cell_line_name']).progress_apply(z)
+hahah.drop(columns=['blockID'], inplace=True)
+hahah.to_csv('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/ComboDrugGrowth_Nov2017_final1.csv', sep=',', index=False)  # save for R loading
+
+
+
+t1 = done.loc[ (done.drug_row == 279836) & (done.drug_col == 740) & (done.cell_line_name == 'ACHN')]
+t2 = done.loc[ (done.drug_col == 279836) & (done.drug_row == 740) & (done.cell_line_name == 'ACHN')]
 
 #%% for  testing func above
 counter = 0
@@ -317,10 +365,100 @@ for i,v in test.groupby(['NSC1','NSC2', 'CELLNAME']):
 
 hah = test.loc[(test.NSC1 == 740) & (test.NSC2 == 752)& (test.CELLNAME.isin([0,1]))]
 
-
+#########
+# for graphing standard error of measurement of single drug noTZ values
+#########
 
 
 # i think above is the fastest working function i was able to make
+#%%
+grouped1 = test.groupby(['NSC1', 'NSC2'])
+d1 = defaultdict(list)  # using defaultdict allows to use .append method to add values to a key
+
+for i,v in grouped1:
+    if i[1] == -9999:
+        temp = v.groupby(['CELLNAME', 'CONC1'])
+
+
+#        temp = v.groupby(['CONC1'])
+        temp1 = []
+        for _,k in temp:
+            temp1.append(k['PERCENTGROWTHNOTZ'].std(ddof=1))
+        d1[i[0]].append(temp1)
+
+
+dd1 = pd.DataFrame.from_dict(d1, orient='index', columns=['sd'])
+dd1.reset_index(level=0, inplace=True)
+dd1.rename(index=str, columns={"index": "drug"}, inplace=True)
+dd1 = dd1['sd'].apply(lambda x: pd.Series(x)).stack().reset_index(level=1, drop=True).to_frame('sd').join(dd1[['drug']], how='left')
+
+incase = dd1.copy()
+#%% used for drawing a scatter with error bars
+from scipy import stats
+
+dd1 = incase.copy()
+dd2= dd1.groupby('drug')['sd'].agg([stats.sem, np.mean])
+dd2.sort_values('mean', inplace=True)
+
+x = dd2.index.astype('str')
+y = np.array(dd2['mean'])
+yerr = np.array(dd2['sem'])
+
+sns.set()
+sns.set_style("whitegrid")
+sns.set_context('paper')
+fig = plt.figure(0)
+fig.set_size_inches(25,50)
+fig.tight_layout()
+
+
+# actual plotting function. Y = x and x = y (exchanged) is necessary to plot it vertically. So xerr should be yerr
+plt.errorbar(y = x, x = y,color='black', marker='X', linestyle='',elinewidth=4 ,ecolor='grey', capsize=10, xerr=yerr)
+plt.xlim([0,20])
+#plt.xticks(rotation=60)
+plt.xlabel('SD',fontsize=66)
+plt.ylabel('NCI drug IDs',fontsize=66)
+plt.tick_params(axis = 'x', labelsize=56)
+plt.tick_params(axis = 'y', labelsize=26)
+plt.title('Standard Deviation of single drug screens',  fontdict={'fontsize': '70'})
+plt.grid(False,axis='y')
+
+now = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
+filename = 'batch_effect' + now +'.svg'
+
+#fig1.savefig(filename, type='pdf')
+fig.savefig(filename, format="svg")
+plt.show()
+plt.close(fig)
+
+#%%
+####################
+####################
+####################
+####################
+####################
+####################
+####################
+for i in ['point']:
+    print(i)
+    sns.catplot(x='drug', y='sd', data=dd1,color='grey',kind=i,ci='sd', join=False, capsize=.2)
+    fig = plt.gcf()
+    fig.set_size_inches(20,15)
+    plt.ylim([0,30])
+
+    plt.xticks(rotation='vertical')
+
+    plt.xlabel('NCI drug IDs',fontsize=30)
+    plt.ylabel('std',fontsize=30)
+    plt.tick_params(labelsize=12)
+    plt.tick_params(axis = 'y', labelsize=20)
+
+    plt.title('Standard Deviation of single drug screens',  fontdict={'fontsize': '36'})
+    plt.show()
+
+
+
+
 ####################
 #%%
 final = []
@@ -913,3 +1051,41 @@ for i,v in file_grouped:
     ):
         print(v['PLATE'].unique())
         counter += 1
+
+
+#%% testing for replcicated combos.
+# It means that a combo of 'NSC1','NSC2','CELLNAME', 'CONC1', 'CONC2' should be tested more than once
+counter = 0
+# def test_reps(x):
+#     i = x.name
+#     print(i)
+#     counter += 1
+#     if counter == 2:
+#         break
+
+file1['nunique'] = file1.groupby(['NSC1','NSC2','CELLNAME', 'CONC1', 'CONC2'])['PLATE'].transform('nunique')
+file2 = file1.loc[(file1['nunique'] >1) & (file1.NSC2 != -9999)]
+
+
+asdasd = smth[smth.index.isin(['-9999'])]
+smth.index = smth.index.map(unicode)
+
+# for Python 3 (the unicode type does not exist and is replaced by str)
+smth.index = smth.index.map(str)
+# for i,v in grgr:
+#     a,b,c,d,e = i[0], i[1],i[2],i[3],i[4]
+#     if b != -9999:
+#         if len(v.PLATE.drop_duplicates()) > 1:
+#             counter +=1
+#             print(i)
+#             if counter == 1:
+#                 break
+
+#%%
+grgr = file1.groupby(['NSC1','NSC2','CELLNAME', 'CONC1', 'CONC2'])
+counter1 = 0
+for ii,vv in grgr23:
+    if ii[1] != -9999:
+        counter1 +=1
+        if counter1 == 1:
+            break
