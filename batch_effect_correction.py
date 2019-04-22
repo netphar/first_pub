@@ -14,18 +14,94 @@ from tqdm import tqdm
 '''
 NB: if a drug is administered as a monotherapy in the screen, nan is given in the second column
 we sub all nan's with -9999
+
+imputed file is ComboDrugGrowth_Nov2017.csv where NA's in PERCENTGROWTHNOTZ were imputed in the following way:
+fit a linear model to PERCENTGROWTH, use this model to fill NA in PERCENTGROWTHNOTZ
+values below zero are set to zero, since this makes the format compatible with the way studies are run in FIMM and in other papers, ie ONEIL
 '''
-dtypes = {'SCREENER': 'object', 'STUDY': 'object', 'TESTDATE': 'str', 'PLATE': 'object', 'NSC1': 'Int64', 'NSC2': 'Int64'}
-# parse_dates = ['TESTDATE']
+dtypes = {'COMBODRUGSEQ': 'Int64', 'SCREENER': 'object', 'STUDY': 'object',  'PLATE': 'object', 'NSC1': 'Int64','CONC1': 'float64', 'NSC2': 'Int64','CONC2': 'float64', 'CELLNAME': 'object'}
+parse_dates = ['TESTDATE']
+fields = ['COMBODRUGSEQ','SCREENER', 'STUDY', 'TESTDATE', 'PLATE', 'NSC1', 'CONC1', 'NSC2', 'CONC2', 'PERCENTGROWTHNOTZ', 'CELLNAME']
 
 file1 = pd.read_csv('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/ComboDrugGrowth_Nov2017_imputed.csv', sep=',',
-                   dtype=dtypes) #, parse_dates=parse_dates)
-file1.drop(['Unnamed: 0'], inplace=True, axis=1)
+                   dtype=dtypes, usecols=fields,  parse_dates=parse_dates)
+# file1.drop(['Unnamed: 0'], inplace=True, axis=1)
 file1.iloc[-1,-1] = 'SF-539'  # very last element is 'SF-539\x1a' for some reason
 
 
 # also need to get na's removed from file1
 file1.fillna(pd.Series(-9999, index=file1.select_dtypes(exclude='category').columns), inplace=True)
+
+#%%
+# create dictionaries of index: value for the following columns.
+# done to exchange datatype object to int
+cellnames = dict(enumerate(file1.CELLNAME.unique()))
+plates = dict(enumerate(file1.PLATE.unique()))
+screeners = dict(enumerate(file1.SCREENER.unique()))
+studies = dict(enumerate(file1.STUDY.unique()))
+
+# inverse mapping, exchange value with key
+inv_cellnames = {v: k for k, v in cellnames.items()}
+inv_plates = {v: k for k, v in plates.items()}
+inv_screeners = {v: k for k,v in screeners.items()}
+inv_studies = {v: k for k,v in studies.items()}
+
+# exchange columns containing objects with ints. Probably something like this can be done during reading
+# reverse is done by using non inverse dictionaries with a map function, like so file1['SCREENER'] = file1['SCREENER'].map(screeners)
+file1['CELLNAME'] = file1['CELLNAME'].map(inv_cellnames)
+file1['PLATE'] = file1['PLATE'].map(inv_plates)
+file1['SCREENER'] = file1['SCREENER'].map(inv_screeners)
+file1['STUDY'] = file1['STUDY'].map(inv_studies)
+
+# normalize the types. used to be int64 vs Int64
+file1 = file1.astype({'SCREENER': 'Int64', 'STUDY': 'Int64', 'PLATE': 'Int64', 'CELLNAME': 'Int64' })
+
+#%%
+def sorter_mod(x):
+    '''
+    :param x: dataframe object from groupby operation on the full file with PLATE as groupby var
+    :return: dataframe with one column (labeled 0), contains values either from hh dict (for single drugs screened in bad plates or calculates mean PERCENTGROWTHNOTZ of the current dataframe
+    '''
+    # a,b,c,d,e = x['NSC1'].unique().astype(int).item(), x['NSC2'].unique().astype(int).item(), x['CELLNAME'].unique().astype(str).item(), x['CONC1'].unique().astype(float).item(), x['CONC2'].unique().astype(str).item()
+    a = np.unique(x['NSC1'].to_numpy()).item()
+    b = np.unique(x['NSC2'].to_numpy()).item()
+    c = np.unique(x['CELLNAME'].to_numpy()).item()
+    d = np.unique(x['CONC1'].to_numpy()).item()
+    e = np.unique(x['CONC2'].to_numpy()).item()
+    if b == -9999:
+        #temp = np.mean(file1.loc[ (file1.NSC1 == a) & (file1.NSC2 == b) & (file1.CELLNAME == c) & (file1.CONC1 == d) & (file1.CONC2 == e)]['PERCENTGROWTHNOTZ'])
+        data = {0: hh.get((a,b,c,d,e), -9999) }
+        return pd.DataFrame(index=x.index, data = data)
+    else:
+        data = {0: np.mean(x['PERCENTGROWTHNOTZ'])}
+        return pd.DataFrame(index=x.index, data=data)
+
+def good(x):
+    '''
+    for good plates we simply get means from the plates
+    :param x: dataframe object from groupby operation on the full file with PLATE as groupby var
+    :return: transform takes in columns as series, and returns series of the same length / index with the function applied
+    '''
+    return x.groupby(['NSC1', 'NSC2', 'CELLNAME', 'CONC1', 'CONC2'])['PERCENTGROWTHNOTZ'].transform(np.mean)
+
+def bad_mod(x):
+    '''
+    for bad plates we need to get averages of all the screens for that combination of drugs / cell lines / doses
+    we are using sorter() and applying it group-wise
+    :param x: dataframe object from groupby operation on the full file with PLATE as groupby var
+    :return:
+    '''
+    return x.groupby(['NSC1', 'NSC2', 'CELLNAME', 'CONC1', 'CONC2']).apply(sorter_mod)
+
+hh = {}
+grouped = file1.groupby(['NSC1', 'NSC2', 'CELLNAME', 'CONC1', 'CONC2'])
+
+for i,v in grouped:
+    if i[1] == -9999:
+        print(i)
+        hh[i] = np.mean(v['PERCENTGROWTHNOTZ'])
+
+del grouped
 
 #%% good plates. Ie the ones where single drug is tested in the same plate as a combination should be analyzed using single drug values from that plate only
 # for bad plates, ie the ones where single drug is tested on a different plate than the combination are analyzed such that:
@@ -52,23 +128,51 @@ file1.fillna(pd.Series(-9999, index=file1.select_dtypes(exclude='category').colu
 # [x for x in combos if x not in singles]  # present only in a
 
 file1_grouped_plate = file1.groupby(['PLATE'])
+something_good = pd.DataFrame()  # holder for all good plates processed
+
 
 gp = []  # good plates
 bp = []  # bad plates
+weird_plates = [] # with more than one cell line tested
 for i,v in file1_grouped_plate:
-    combos = v.loc[v.NSC2 != -9999][['NSC1', 'NSC2', 'CELLNAME']].drop_duplicates()  # combos
-    singles = v.loc[v.NSC2 == -9999][['NSC1', 'NSC2', 'CELLNAME']].drop_duplicates()  # singles
-    combos_cell = set()
-    singles_cell = set()
-    combos.apply(lambda x: combos_cell.add((x[0], x[2])), axis=1)  # adding NSC1-cell line, iterating over rows
-    combos.apply(lambda x: combos_cell.add((x[1], x[2])), axis=1)  # adding NSC2-cell line, iterate over rows
-    singles.apply(lambda x: singles_cell.add((x[0], x[2])), axis=1)  # adding NSC1 from single drugs, iter over rows
-    temp = combos_cell - singles_cell  # difference should be zero if all single drugs are screened in the same plate as combos
-    if not temp:
-        gp.append(i)
+    if len(v['CELLNAME'].unique()) == 1:
+        a1 = v.loc[v.NSC2 != -9999][
+            ['NSC1', 'CONC1']].drop_duplicates().values  # get NSC1 unique drug - conc pairs
+        a2 = v.loc[v.NSC2 != -9999][
+            ['NSC2', 'CONC2']].drop_duplicates().values  # get NSC2 unique drug - conc pairs
+        a = np.concatenate(
+            (a1, a2))  # concat both lists. These are all the drugs tested in combos with corresponding concentrations
+        b = v.loc[v.NSC2 == -9999][
+            ['NSC1', 'CONC1']].drop_duplicates().values  # all the drugs with concentrations tested as single drugs
+        mask = np.isin(a, b)  # check for presence of elements in a in b. Good plates should have all combo drugs tested as singles in the same plate
+        if mask.all():  # means all drugs tested combos are tested in singles in  that very plate. Total of 15103
+            temp = good(v)
+            something_good = pd.concat([something_good, temp])
+            gp.append(i)
+            print('good plate')
+        else: # total of 7124
+            temp = bad_mod(v)
+            bp.append(i)
+            print('bad plate')
+        # below is old
+        # combos = v.loc[v.NSC2 != -9999][['NSC1', 'NSC2', 'CELLNAME']].drop_duplicates()  # combos
+        # singles = v.loc[v.NSC2 == -9999][['NSC1', 'NSC2', 'CELLNAME']].drop_duplicates()  # singles
+        # combos_cell = set()
+        # singles_cell = set()
+        # combos.apply(lambda x: combos_cell.add((x[0], x[2])), axis=1)  # adding NSC1-cell line, iterating over rows
+        # combos.apply(lambda x: combos_cell.add((x[1], x[2])), axis=1)  # adding NSC2-cell line, iterate over rows
+        # singles.apply(lambda x: singles_cell.add((x[0], x[2])), axis=1)  # adding NSC1 from single drugs, iter over rows
+        # temp = combos_cell - singles_cell  # difference should be zero if all single drugs are screened in the same plate as combo
 
-    else:
-        bp.append(i)
+    else: # apparently there is tons of plates with more than one cell line grown per plate. total of 4460
+        print(i)
+        weird_plates.append(i)
+
+something_good.rename(columns={0:'mean noTZ'},inplace=True)
+
+test = file1.copy()
+test.update(something_good)
+
 
 #%%
 # omg, it s so much easier to just pre-calculate the values for all possible combinations and then do the look up
