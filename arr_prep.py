@@ -58,13 +58,15 @@ hh = {}
 
 def get_singles(x):
     if np.unique(x.NSC2) == -9999:
-        hh[x.name] = np.mean(x['PERCENTGROWTHNOTZ'])
+        hh[x.name] = np.median(x['PERCENTGROWTHNOTZ'])
     else:
         pass
 
 tqdm.pandas(desc="pbar")
 
 file1.groupby(['NSC1', 'NSC2', 'CELLNAME', 'CONC1', 'CONC2']).progress_apply(get_singles)
+#%% QC for dict values
+any(np.isnan(val) for val in hh.values())
 
 # %%
 good_plates = pd.DataFrame()
