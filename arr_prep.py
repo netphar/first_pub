@@ -97,16 +97,17 @@ def goodness_of_plate(x, bp=bp, gp=gp):
         # if all true in mask,
         # it is a good plate
         if mask.all():
-            gp.append(np.unique(x.PLATE))
+            gp.append(x.name)
             x['good plate'] = 1
             x['bad plate'] = 0
             return x
         else:
-            bp.append(np.unique(x.PLATE))
+            bp.append(x.name)
             x['bad plate'] = 1
             x['good plate'] = 0
             return x
     else:  # this is the case for weird plate, where there is more than 1 cell line per plate
+        weird_plates.append(x.name)
         return x
 
 
