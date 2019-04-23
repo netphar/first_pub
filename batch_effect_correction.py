@@ -70,7 +70,7 @@ def sorter_mod(x):
     e = np.unique(x['CONC2'].to_numpy()).item()
     if b == -9999:
         #temp = np.mean(file1.loc[ (file1.NSC1 == a) & (file1.NSC2 == b) & (file1.CELLNAME == c) & (file1.CONC1 == d) & (file1.CONC2 == e)]['PERCENTGROWTHNOTZ'])
-        data = {0: hh.get((a,b,c,d,e), -9999) }
+        data = {0: hh.get((a,b,c,d,e), -9999) } # this is a precalculated dictionary
         return pd.DataFrame(index=x.index, data = data)
     else:
         data = {0: np.mean(x['PERCENTGROWTHNOTZ'])}
@@ -87,7 +87,7 @@ def good(x):
 def bad_mod(x):
     '''
     for bad plates we need to get averages of all the screens for that combination of drugs / cell lines / doses
-    we are using sorter() and applying it group-wise
+    we are using sorter_mod() and applying it group-wise
     :param x: dataframe object from groupby operation on the full file with PLATE as groupby var
     :return:
     '''
@@ -129,6 +129,9 @@ del grouped
 
 file1_grouped_plate = file1.groupby(['PLATE'])
 something_good = pd.DataFrame()  # holder for all good plates processed
+something_bad = pd.DataFrame()  # holder for all good plates processed
+something_weird = pd.DataFrame()
+
 
 
 gp = []  # good plates
@@ -152,6 +155,7 @@ for i,v in file1_grouped_plate:
             print('good plate')
         else: # total of 7124
             temp = bad_mod(v)
+            something_bad = pd.concat([something_bad, temp])
             bp.append(i)
             print('bad plate')
         # below is old
@@ -165,13 +169,20 @@ for i,v in file1_grouped_plate:
         # temp = combos_cell - singles_cell  # difference should be zero if all single drugs are screened in the same plate as combo
 
     else: # apparently there is tons of plates with more than one cell line grown per plate. total of 4460
+        temp = 
+
         print(i)
         weird_plates.append(i)
 
 something_good.rename(columns={0:'mean noTZ'},inplace=True)
+something_bad.rename(columns={0:'mean noTZ'},inplace=True)
+
 
 test = file1.copy()
+test['mean noTZ'] = np.nan
+test['good plate'] = np.nan
 test.update(something_good)
+test_update(something_bad)
 
 
 #%%
