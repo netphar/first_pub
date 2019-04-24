@@ -12,11 +12,35 @@ with open('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/sin
 
 # loading previously prepared df prepared in arr_prep.py
 
-# with open('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/cleaned_NCI_input_using_median.pickle', 'rb') as handle:
-#     file1 = pickle.load(handle)
 
 with open('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/with_plates_sorted_using_median.pickle', 'rb') as handle:
     test = pickle.load(handle)
+
+# needed for mapping
+
+#%%
+'''
+NB: if a drug is administered as a monotherapy in the screen, nan is given in the second column
+we sub all nan's with -9999
+
+imputed file is ComboDrugGrowth_Nov2017.csv where NA's in PERCENTGROWTHNOTZ were imputed in the following way:
+fit a linear model to PERCENTGROWTH, use this model to fill NA in PERCENTGROWTHNOTZ
+values below zero are set to zero, since this makes the format compatible with the way studies are run in FIMM and in other papers, ie ONEIL
+'''
+dtypes = {'COMBODRUGSEQ': 'Int64', 'SCREENER': 'object', 'STUDY': 'object',  'PLATE': 'object', 'NSC1': 'Int64','CONC1': 'float64', 'NSC2': 'Int64','CONC2': 'float64', 'CELLNAME': 'object'}
+parse_dates = ['TESTDATE']
+fields = ['COMBODRUGSEQ','SCREENER', 'STUDY', 'TESTDATE', 'PLATE', 'NSC1', 'CONC1', 'NSC2', 'CONC2', 'PERCENTGROWTHNOTZ', 'CELLNAME']
+
+file1 = pd.read_csv('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/ComboDrugGrowth_Nov2017_imputed.csv', sep=',',
+                   dtype=dtypes, usecols=fields,  parse_dates=parse_dates)
+# file1.drop(['Unnamed: 0'], inplace=True, axis=1)
+file1.iloc[-1,-1] = 'SF-539'  # very last element is 'SF-539\x1a' for some reason
+
+
+# also need to get na's removed from file1
+file1.fillna(pd.Series(-9999, index=file1.select_dtypes(exclude='category').columns), inplace=True)
+cellnames = dict(enumerate(file1.CELLNAME.unique()))
+plates = dict(enumerate(file1.PLATE.unique()))
 
 # %%
 # let's do conditional computation for good plates
@@ -168,7 +192,7 @@ with open('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/bad
 
 
 # %%
-
+# processing weird plates
 def bb_weird(x, single_drug_median_noTZ=hh):
     """
     process weird plates. Drops all single drugs tested in a plate and substitutes with values from hh.
@@ -238,7 +262,102 @@ tqdm.pandas(desc="progress")
 s = weird.groupby(['PLATE'], as_index = False).progress_apply(bb_weird)
 
 #%%
+# qc for weird plates
+safety = s.copy()
+s = s.drop_duplicates(subset = ['NSC1', 'NSC2', 'CELLNAME', 'CONC1', 'CONC2', 'mean noTZ'])
+lengths = []
+for i,v in s.groupby(['NSC1', 'NSC2', 'CELLNAME']):
+    lengths.append(len(v))
 
-with open('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/weird_plates.pickle', 'wb') as handle:
+lengths = np.unique(lengths)  # all 24
+#%% adding block id and house keeping for input to synergyfinder
+
+s['CELLNAME'] = s['CELLNAME'].map(cellnames)
+s['PLATE'] = s['PLATE'].map(plates)
+
+def func(x):
+    x['block ID'] = str(abs(hash(x.name))) + ':' + str(x.name[2])
+    return x
+
+s = s.groupby(['NSC1', 'NSC2', 'CELLNAME']).apply(func)
+
+s.rename(columns={'mean noTZ': 'response', 'NSC2':'drug_row', 'CONC2':'conc_r', 'NSC1':'drug_col', 'CONC1':'conc_c', 'CELLNAME':'cell_line_name'}, inplace=True)
+s['conc_r_unit'] = s['conc_c_unit'] = 'uM'
+
+
+with open('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/weird_plates_median.pickle', 'wb') as handle:
     pickle.dump(s, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
+s.to_csv('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/weird_plates.csv', sep=',', index=False)  # save for R loading
+
+
+#%% qc for bad plates
+backup = sample.copy()
+
+sample = sample.drop_duplicates(subset = ['NSC1', 'NSC2', 'CELLNAME', 'CONC1', 'CONC2', 'mean noTZ'])
+
+lengths_bad = []
+for i,v in sample.groupby(['NSC1', 'NSC2', 'CELLNAME']):
+    lengths_bad.append(len(v))
+    if (len(v) != 24) & (len(v) != 16):
+        print(i)
+        break
+print(np.unique(lengths_bad))  # 16 and 24
+
+#%% housekeeping for bad plates
+tqdm.pandas(desc="progress")
+
+
+sample['cell_line_name'] = sample['cell_line_name'].map(cellnames)
+sample['PLATE'] = sample['PLATE'].map(plates)
+
+def func(x):
+    x['block ID'] = str(abs(hash(x.name))*2) + ':' + str(x.name[2])
+    return x
+
+sample = sample.groupby(['NSC1', 'NSC2', 'CELLNAME']).progress_apply(func)
+
+sample.rename(columns={'mean noTZ': 'response', 'NSC2':'drug_row', 'CONC2':'conc_r', 'NSC1':'drug_col', 'CONC1':'conc_c', 'CELLNAME':'cell_line_name'}, inplace=True)
+sample['conc_r_unit'] = sample['conc_c_unit'] = 'uM'
+
+
+with open('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/bad_plates_median.pickle', 'wb') as handle:
+    pickle.dump(sample, handle, protocol=pickle.HIGHEST_PROTOCOL)
+sample.to_csv('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/bad_plates.csv', sep=',', index=False)  # save for R loading
+
+#%% qc for good plates
+
+backup1 = salt.copy()
+
+lengths_good = []
+for i,v in salt.groupby(['NSC1', 'NSC2', 'CELLNAME', 'PLATE']):
+    lengths_good.append(len(v))
+    if (len(v) != 24) & (len(v) != 16):
+        print(i)
+        break
+print(np.unique(lengths_good))
+
+#%% good plates housekeeping
+
+# salt = salt.drop_duplicates(subset = ['NSC1', 'NSC2', 'CELLNAME', 'CONC1', 'CONC2', 'mean noTZ'])
+
+tqdm.pandas(desc="progress")
+
+
+salt['CELLNAME'] = salt['CELLNAME'].map(cellnames)
+salt['PLATE'] = salt['PLATE'].map(plates)
+
+def func(x):
+    x['block ID'] = str(abs(hash(x.name))*2) + ':' + str(x.name[2])
+    return x
+
+salt = salt.groupby(['NSC1', 'NSC2', 'CELLNAME', 'PLATE']).progress_apply(func)
+
+salt.rename(columns={'mean noTZ': 'response', 'NSC2':'drug_row', 'CONC2':'conc_r', 'NSC1':'drug_col', 'CONC1':'conc_c', 'CELLNAME':'cell_line_name'}, inplace=True)
+salt['conc_r_unit'] = salt['conc_c_unit'] = 'uM'
+
+
+with open('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/good_plates_median.pickle', 'wb') as handle:
+    pickle.dump(salt, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+salt.to_csv('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/good_plates.csv', sep=',', index=False)  # save for R loading
