@@ -6,16 +6,16 @@ import pickle
 
 # %%
 # loading previously prepared dict with 'NSC1', 'NSC2', 'CELLNAME', 'CONC1', 'CONC2' as keys and mean no TZ as value
-with open('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/single_drug_meannoTZ.pickle',
+with open('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/single_drug_meannoTZ_using_median.pickle',
           'rb') as handle:
     hh = pickle.load(handle)
 
 # loading previously prepared df prepared in arr_prep.py
 
-with open('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/cleaned_NCI_input.pickle', 'rb') as handle:
-    file1 = pickle.load(handle)
+# with open('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/cleaned_NCI_input_using_median.pickle', 'rb') as handle:
+#     file1 = pickle.load(handle)
 
-with open('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/with_plates_sorted.pickle', 'rb') as handle:
+with open('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/with_plates_sorted_using_median.pickle', 'rb') as handle:
     test = pickle.load(handle)
 
 # %%
@@ -24,46 +24,76 @@ tqdm.pandas(desc="progress")
 
 
 def good_mod(x):
-    '''
-    for good plates we simply get means from the plates for all both singles and combos.
-    add zero columns
-    correct concentrations to uM
-    :param x: dataframe object from groupby operation on the full file with PLATE as groupby var
-    :return: return df with ['NSC1', 'NSC2', 'CELLNAME', 'CONC1', 'CONC2', 'PLATE', 'mean noTZ', 'good plate', 'bad plate']
-    '''
-    x = x.drop(['COMBODRUGSEQ', 'SCREENER', 'STUDY', 'TESTDATE'], axis=1)
-    x['mean noTZ'] = x.groupby(['NSC1', 'NSC2', 'CELLNAME', 'CONC1', 'CONC2'])['PERCENTGROWTHNOTZ'].transform(np.mean)
+    """
+    analysis of good plate
+    :param x: grouped by plate df
+    :return: processed thing
+    """
+
+    # gotta use dict with nsc1 nsc2 cellname conc1 conc2 as key and mean noTZ as value
+    # a very convoluted solution to calculation mean noTZ for single drugs
+    hh1 = {}
+
+    def get_singles_mod(x):
+        if np.unique(x.NSC2) == -9999:
+            hh1[x.name] = np.median(x['PERCENTGROWTHNOTZ'])
+        else:
+            pass
+
+    x.groupby(['NSC1', 'NSC2', 'CELLNAME', 'CONC1', 'CONC2']).apply(get_singles_mod)
+    x = x.loc[x.NSC2 != -9999, :]
+
+    x['mean noTZ'] = x.groupby(['NSC1', 'NSC2', 'CELLNAME', 'CONC1', 'CONC2'])['PERCENTGROWTHNOTZ'].transform(np.median)  # calc mean noTZ for combos
     x = x.drop(['PERCENTGROWTHNOTZ'], axis=1)
 
+    # this part adds zero concentrations and an empty row
+    def dropper_mod(x, single_drug_median_noTZ=hh1):
+        a = x.drop_duplicates(subset=['NSC1', 'CONC1'])
+        a['CONC2'] = 0
+        a['mean noTZ'] = a.apply(
+            lambda row: single_drug_median_noTZ.get((row['NSC1'], -9999, row['CELLNAME'], row['CONC1'], -9999), -9999),
+            axis=1)
 
-    cellline = int(x['CELLNAME'].drop_duplicates())
-    plate = int(x['PLATE'].drop_duplicates())
 
-    # creating zero columns
-    a = x.loc[x.NSC2 != -9999, :]
-    a = a[['NSC1', 'NSC2']].drop_duplicates()
-    a['CONC1'] = 0
-    a['CONC2'] = 0
-    a['mean noTZ'] = 100
-    a['CELLNAME'] = cellline
-    a['good plate'] = 1
-    a['bad plate'] = 0
-    a['PLATE'] = plate
+        b = x.drop_duplicates(subset=['NSC2', 'CONC2'])
+        b['CONC1'] = 0
+        b['mean noTZ'] = b.apply(
+            lambda row: single_drug_median_noTZ.get((row['NSC2'], -9999, row['CELLNAME'], row['CONC2'], -9999), -9999),
+            axis=1)
 
-    # correcting concentrations (mult by 10e6 and make -9999 to 0)
-    x.loc[x['CONC2'] == -9999, 'CONC2'] = 0
-    x[['CONC1', 'CONC2']] = x[['CONC1', 'CONC2']] * 1e6
+        # creating zero columns
+        zeroes = x[['NSC1', 'NSC2']].drop_duplicates()
+        zeroes['CONC1'] = 0
+        zeroes['CONC2'] = 0
+        zeroes['mean noTZ'] = 100
+        zeroes['CELLNAME'] = x.name[2]
+        zeroes['PLATE'] = x.name[3]
+        zeroes['good plate'] = 1
+        zeroes['bad plate'] = 0
 
-    out = pd.concat([x, a], sort=False)
+        out = pd.concat([a, b], sort=False,ignore_index=True)
+        out = pd.concat([out, zeroes], sort=False,ignore_index=True)
+
+        return out
+    x = x.drop(['COMBODRUGSEQ', 'SCREENER', 'STUDY', 'TESTDATE'],
+                                       axis=1)  # remove unneeded cols
+
+
+    b = x.groupby(['NSC1', 'NSC2', 'CELLNAME', 'PLATE']).apply(dropper_mod)
+
+
+    out = pd.concat([x,b], sort=False, ignore_index=True)
+
+    out[['CONC1', 'CONC2']] *= 1e6
+
     return out
 
 apvp = test.loc[test['good plate'] == 1, :]
-ew = apvp.loc[apvp['PLATE'] == 0, :]
-a = good_mod(ew)
-a.to_csv('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/fun.csv', sep=';')
+# apvp = apvp.loc[ apvp.PLATE.isin([0,10]),: ]
 
 
-salt = apvp.groupby('PLATE').progress_apply(good_mod)
+
+salt = apvp.groupby(['PLATE'], as_index=False).progress_apply(good_mod)
 
 
 # %%
@@ -72,130 +102,62 @@ salt = apvp.groupby('PLATE').progress_apply(good_mod)
 # return a df where all the drugs that have not been tested in that plate as singles are appended to df slice with only combos tested
 
 
-def bb(x, single_drug_mean_noTZ=hh):
+def bb_mod(x, single_drug_median_noTZ=hh):
     """
-    process bad plates. Drops all single drugs tested in a plate and substitutes with values from hh
-    adds zero concentrations of drugs with mean noTZ == 100
-    correction concetration to uM
-    :param x: input df, group by PLATE objext with bad_plate == 1
-    :param single_drug_mean_noTZ: dictionary containing ('NSC1', -9999, 'CELLNAME', 'CONC1', -9999) as keys and mean noTZ as values
-    :return: cleaned df with combos and single drug values taken from hh
+    same as before
+    :param x: grouped by plate
+    :param single_drug_median_noTZ: dictionary containing nsc1 nsc2 cellname conc1 conc2 as key and mean noTZ calculated across all the plates
+    :return: sorted and prepared df
     """
-    cellline = int(x['CELLNAME'].drop_duplicates())
-    plate = int(x['PLATE'].drop_duplicates())
 
+
+    def dropper(x, single_drug_median_noTZ=hh):
+        a = x.drop_duplicates(subset=['NSC1', 'CONC1'])
+        a['CONC2'] = 0
+        a['mean noTZ'] = a.apply(
+            lambda row: single_drug_median_noTZ.get((row['NSC1'], -9999, row['CELLNAME'], row['CONC1'], -9999), -9999),
+            axis=1)
+
+        b = x.drop_duplicates(subset=['NSC2', 'CONC2'])
+        b['CONC1'] = 0
+        b['mean noTZ'] = b.apply(
+            lambda row: single_drug_median_noTZ.get((row['NSC2'], -9999, row['CELLNAME'], row['CONC2'], -9999), -9999),
+            axis=1)
+
+        # creating zero columns
+        zeroes = x[['NSC1', 'NSC2']].drop_duplicates()
+        zeroes['CONC1'] = 0
+        zeroes['CONC2'] = 0
+        zeroes['mean noTZ'] = 100
+        zeroes['CELLNAME'] = x.name[2]
+        zeroes['PLATE'] = x.name[3]
+        zeroes['good plate'] = 0
+        zeroes['bad plate'] = 1
+
+        out = pd.concat([a, b], sort=False)
+        out = pd.concat([out, zeroes], sort=False)
+
+        return out
 
     a = x.loc[x.NSC2 != -9999, :].drop(['COMBODRUGSEQ', 'SCREENER', 'STUDY', 'TESTDATE'],
                                        axis=1)  # remove unneeded cols
-    a['mean noTZ'] = a.groupby(['NSC1', 'NSC2', 'CELLNAME', 'CONC1', 'CONC2'])['PERCENTGROWTHNOTZ'].transform(
-        np.mean)  # calc mean noTZ for combos
+    a['mean noTZ'] = a.groupby(['NSC1', 'NSC2', 'CELLNAME', 'CONC1', 'CONC2'])['PERCENTGROWTHNOTZ'].transform(np.median)  # calc mean noTZ for combos
     a = a.drop(['PERCENTGROWTHNOTZ'], axis=1)
 
+    b = a.groupby(['NSC1', 'NSC2', 'CELLNAME', 'PLATE']).apply(dropper)
 
-    # extract all drugs / conc cellline tested in combos and create a new df with it
-    a1 = a[['NSC1', 'CONC1', 'CELLNAME']]
-    a2 = a[['NSC2', 'CONC2', 'CELLNAME']].rename(index=str, columns={"NSC2": "NSC1", "CONC2": "CONC1"})
-    new = pd.concat([a1, a2]).drop_duplicates()
-    new['NSC2'] = -9999
-    new['CONC2'] = -9999
-    new['bad plate'] = 1
-    new['good plate'] = 0
-    new['PLATE'] = plate
+    out = pd.concat([a,b], sort=False, ignore_index=True)
 
-    # do row-wise calculation searching hh dict
-    new['mean noTZ'] = new.apply(
-        lambda row: single_drug_mean_noTZ.get((row['NSC1'], row['NSC2'], row['CELLNAME'], row['CONC1'], row['CONC2']), -9999), axis=1)
+    out[['CONC1', 'CONC2']] *= 1e6
 
-    # concat original df without single drugs and all the single drugs tested
-    out = pd.concat([a, new], sort=False)
-
-    # creating zero columns
-    zeroes = a[['NSC1', 'NSC2']].drop_duplicates()
-    zeroes['CONC1'] = 0
-    zeroes['CONC2'] = 0
-    zeroes['mean noTZ'] = 100
-    zeroes['CELLNAME'] = cellline
-    zeroes['PLATE'] = plate
-    zeroes['good plate'] = 0
-    zeroes['bad plate'] = 1
-
-    # correcting concentrations
-    out.loc[out['CONC2'] == -9999, 'CONC2'] = 0
-    out[['CONC1', 'CONC2']] = out[['CONC1', 'CONC2']] * 1e6
-
-    real_out = pd.concat([out, zeroes], sort=False)
-
-    return real_out
-
+    return out
 
 tqdm.pandas(desc="progress")
 
 play = test.loc[test['bad plate'] == 1, :]  # all the bad plates
-sample = play.groupby('PLATE').progress_apply(bb)  # this is the output to be concatenated for the final results
+# play = play.loc[ play.PLATE.isin([1,2]),: ]
 
-# %%
-
-def bb_weird(x, single_drug_mean_noTZ=hh):
-    """
-    process bad plates. Drops all single drugs tested in a plate and substitutes with values from hh.
-    drops plates, since we have multiples plates by group
-    :param x: input df, group by ['NSC1', 'NSC2', 'CELLNAME'] objext with bad_plate.isna() and good_plate.isna()
-    :param single_drug_mean_noTZ: dictionary containing ('NSC1', -9999, 'CELLNAME', 'CONC1', -9999) as keys and mean noTZ as values
-    :return: cleaned df with combos and single drug values from hh
-    """
-    a = x.loc[x.NSC2 != -9999, :]
-    if a.empty:
-        pass
-    else:
-        a = a.drop(['COMBODRUGSEQ', 'SCREENER', 'STUDY', 'TESTDATE', 'PLATE'],
-                                           axis=1)  # remove unneeded cols
-        a['mean noTZ'] = a.groupby(['NSC1', 'NSC2', 'CELLNAME', 'CONC1', 'CONC2'])['PERCENTGROWTHNOTZ'].transform(
-        np.mean)  # calc mean noTZ for combos
-        a = a.drop(['PERCENTGROWTHNOTZ'], axis=1)
-
-        a['bad plate'] = 0
-        a['good plate'] = 0
-
-        cellline = int(a['CELLNAME'].drop_duplicates())
-#         plate = int(a['PLATE'].drop_duplicates())
-
-        # extract all drugs / conc cellline tested in combos and create a new df with it
-        a1 = a[['NSC1', 'CONC1', 'CELLNAME']]
-        a2 = a[['NSC2', 'CONC2', 'CELLNAME']].rename(index=str, columns={"NSC2": "NSC1", "CONC2": "CONC1"})
-        new = pd.concat([a1, a2]).drop_duplicates()
-        new['NSC2'] = -9999
-        new['CONC2'] = -9999
-        new['bad plate'] = 0
-        new['good plate'] = 0
-        # do row-wise calculation searching hh dict
-        new['mean noTZ'] = new.apply(
-            lambda row: single_drug_mean_noTZ.get((row['NSC1'], row['NSC2'], row['CELLNAME'], row['CONC1'], row['CONC2']), -9999), axis=1)
-
-        # creating zero columns
-        zeroes = a[['NSC1', 'NSC2']].drop_duplicates()
-        zeroes['CONC1'] = 0
-        zeroes['CONC2'] = 0
-        zeroes['mean noTZ'] = 100
-        zeroes['CELLNAME'] = cellline
-        zeroes['good plate'] = 0
-        zeroes['bad plate'] = 0
-
-        # concat original df without single drugs and all the single drugs tested
-        out = pd.concat([a, new], sort=False)
-
-        # correcting concentrations
-        out.loc[out['CONC2'] == -9999, 'CONC2'] = 0
-        out[['CONC1', 'CONC2']] = out[['CONC1', 'CONC2']] * 1e6
-
-        real_out = pd.concat([out, zeroes], sort=False)
-
-        return real_out
-
-# %%
-weird = test.loc[(test['bad plate'].isna()) & (test['good plate'].isna()), :]  # all the wierd plates
-
-tqdm.pandas(desc="progress")
-s = weird.groupby(['NSC1', 'NSC2', 'CELLNAME']).progress_apply(bb_weird)
+sample = play.groupby(['PLATE'], as_index = False).progress_apply(bb_mod)  # this is the output to be concatenated for the final results
 
 #%%
 with open('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/good_plates.pickle', 'wb') as handle:
@@ -203,6 +165,79 @@ with open('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/goo
 
 with open('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/bad_plates.pickle', 'wb') as handle:
     pickle.dump(sample, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+# %%
+
+def bb_weird(x, single_drug_median_noTZ=hh):
+    """
+    process weird plates. Drops all single drugs tested in a plate and substitutes with values from hh.
+    drops plates, since we have multiples plates by group
+    :param x: input df, group by ['NSC1', 'NSC2', 'CELLNAME'] objext with bad_plate.isna() and good_plate.isna()
+    :param single_drug_mean_noTZ: dictionary containing ('NSC1', -9999, 'CELLNAME', 'CONC1', -9999) as keys and mean noTZ as values
+    :return: cleaned df with combos and single drug values from hh
+    """
+
+    def dropper(x, single_drug_median_noTZ=hh):
+        a = x.drop_duplicates(subset=['NSC1', 'CONC1'])
+        a['CONC2'] = 0
+        a['mean noTZ'] = a.apply(
+            lambda row: single_drug_median_noTZ.get((row['NSC1'], -9999, row['CELLNAME'], row['CONC1'], -9999),
+                                                    -9999),
+            axis=1)
+
+        b = x.drop_duplicates(subset=['NSC2', 'CONC2'])
+        b['CONC1'] = 0
+        b['mean noTZ'] = b.apply(
+            lambda row: single_drug_median_noTZ.get((row['NSC2'], -9999, row['CELLNAME'], row['CONC2'], -9999),
+                                                    -9999),
+            axis=1)
+
+        # creating zero columns
+        zeroes = x[['NSC1', 'NSC2']].drop_duplicates()
+        zeroes['CONC1'] = 0
+        zeroes['CONC2'] = 0
+        zeroes['mean noTZ'] = 100
+        zeroes['CELLNAME'] = x.name[2]
+        zeroes['PLATE'] = x.name[3]
+        zeroes['good plate'] = 0
+        zeroes['bad plate'] = 0
+
+        out = pd.concat([a, b], sort=False)
+        out = pd.concat([out, zeroes], sort=False)
+
+        return out
+    a = x.loc[x.NSC2 != -9999, :]
+    if a.empty:  # check if the plate is only empty
+        pass
+    else:
+
+
+
+        a = x.loc[x.NSC2 != -9999, :].drop(['COMBODRUGSEQ', 'SCREENER', 'STUDY', 'TESTDATE'],
+                                           axis=1)  # remove unneeded cols
+        a['mean noTZ'] = a.groupby(['NSC1', 'NSC2', 'CELLNAME', 'CONC1', 'CONC2'])['PERCENTGROWTHNOTZ'].transform(
+            np.median)  # calc mean noTZ for combos
+        a = a.drop(['PERCENTGROWTHNOTZ'], axis=1)
+
+        b = a.groupby(['NSC1', 'NSC2', 'CELLNAME', 'PLATE']).apply(dropper)
+
+        out = pd.concat([a, b], sort=False, ignore_index=True)
+
+        out[['CONC1', 'CONC2']] *= 1e6
+
+        return out
+
+# %%
+weird = test.loc[(test['bad plate'].isna()) & (test['good plate'].isna()), :]  # all the wierd plates
+weird[['good plate', 'bad plate']] = 0
+# weird = weird.loc[weird.PLATE.isin([22301, 22302]), :]
+
+
+tqdm.pandas(desc="progress")
+s = weird.groupby(['PLATE'], as_index = False).progress_apply(bb_weird)
+
+#%%
 
 with open('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/weird_plates.pickle', 'wb') as handle:
     pickle.dump(s, handle, protocol=pickle.HIGHEST_PROTOCOL)

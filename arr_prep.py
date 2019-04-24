@@ -66,7 +66,7 @@ tqdm.pandas(desc="pbar")
 
 file1.groupby(['NSC1', 'NSC2', 'CELLNAME', 'CONC1', 'CONC2']).progress_apply(get_singles)
 #%% QC for dict values
-any(np.isnan(val) for val in hh.values())
+any(np.isnan(val) for val in hh.values())  # no nans. good
 
 # %%
 good_plates = pd.DataFrame()
@@ -124,11 +124,11 @@ test = test.groupby('PLATE').progress_apply(goodness_of_plate)
 
 #%%
 
-with open('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/single_drug_meannoTZ.pickle', 'wb') as handle:
+with open('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/single_drug_meannoTZ_using_median.pickle', 'wb') as handle:
     pickle.dump(hh, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-with open('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/cleaned_NCI_input.pickle', 'wb') as handle:
+with open('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/cleaned_NCI_input_using_median.pickle', 'wb') as handle:
     pickle.dump(file1, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-with open('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/with_plates_sorted.pickle', 'wb') as handle:
+with open('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/with_plates_sorted_using_median.pickle', 'wb') as handle:
     pickle.dump(test, handle, protocol=pickle.HIGHEST_PROTOCOL)
