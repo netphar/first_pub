@@ -181,7 +181,7 @@ tqdm.pandas(desc="progress")
 play = test.loc[test['bad plate'] == 1, :]  # all the bad plates
 # play = play.loc[ play.PLATE.isin([1,2]),: ]
 
-sample = play.groupby(['PLATE'], as_index = False).progress_apply(bb_mod)  # this is the output to be concatenated for the final results
+sample = play.groupby(['PLATE'], as_index=False).progress_apply(bb_mod)  # this is the output to be concatenated for the final results
 
 #%%
 with open('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/good_plates.pickle', 'wb') as handle:
@@ -276,6 +276,11 @@ s['CELLNAME'] = s['CELLNAME'].map(cellnames)
 s['PLATE'] = s['PLATE'].map(plates)
 
 def func(x):
+    """
+    introduces a new column as a hash of a key of the input group  + CELLNAME
+    :param x: groupby df by 'NSC1', 'NSC2', 'CELLNAME'
+    :return: original df + block ID column
+    """
     x['block ID'] = str(abs(hash(x.name))) + ':' + str(x.name[2])
     return x
 
@@ -294,6 +299,7 @@ s.to_csv('/Users/zagidull/Documents/fimm_files/publication_data/NCI_Almanac/weir
 #%% qc for bad plates
 backup = sample.copy()
 
+# drop duplicates step is very important. As there are replicates across the plates
 sample = sample.drop_duplicates(subset = ['NSC1', 'NSC2', 'CELLNAME', 'CONC1', 'CONC2', 'mean noTZ'])
 
 lengths_bad = []
@@ -312,6 +318,11 @@ sample['cell_line_name'] = sample['cell_line_name'].map(cellnames)
 sample['PLATE'] = sample['PLATE'].map(plates)
 
 def func(x):
+    """
+     introduces a new column as a hash of a key of the input group  + CELLNAME
+    :param x: groupby df by 'NSC1', 'NSC2', 'CELLNAME'
+    :return: original df + block ID column
+    """
     x['block ID'] = str(abs(hash(x.name))*2) + ':' + str(x.name[2])
     return x
 
@@ -335,7 +346,7 @@ for i,v in salt.groupby(['NSC1', 'NSC2', 'CELLNAME', 'PLATE']):
     if (len(v) != 24) & (len(v) != 16):
         print(i)
         break
-print(np.unique(lengths_good))
+print(np.unique(lengths_good))  # 16
 
 #%% good plates housekeeping
 
@@ -348,6 +359,11 @@ salt['CELLNAME'] = salt['CELLNAME'].map(cellnames)
 salt['PLATE'] = salt['PLATE'].map(plates)
 
 def func(x):
+    """
+    introduces a new column as a hash of a key of the input group  + CELLNAME
+    :param x: groupby df by 'NSC1', 'NSC2', 'CELLNAME'
+    :return: original df + block ID column
+    """
     x['block ID'] = str(abs(hash(x.name))*2) + ':' + str(x.name[2])
     return x
 
